@@ -50,7 +50,7 @@ Backend menyediakan sekumpulan endpoint `REST` di bawah `/api/admin/*` untuk men
 
 > **Catatan**
 >
-> * Middleware `AuthzAdminStub` dapat diaktifkan melalui `ENABLE_ADMIN_GUARD=true` (default aktif otomatis bila `APP_ENV=prod`). Saat aktif, stub akan merespons `401` atau `403` berdasarkan `ADMIN_GUARD_MODE`.
+> * Seluruh endpoint admin kini wajib menggunakan JWT access token. Lakukan autentikasi melalui `POST /api/auth/login`, kirim header `Authorization: Bearer <token>` saat mengakses `/api/admin/**`, dan gunakan cookie refresh untuk memperbarui sesi.
 > * Operasi `DELETE` pada skills/services/projects bersifat hard delete.
 > * Reorder dilakukan dalam transaksi untuk menjaga konsistensi urutan.
 
@@ -163,6 +163,40 @@ go vet ./...
 go test ./...
 go build ./...
 ```
+
+## 🔐 Authentication Setup
+
+1. Salin konfigurasi lingkungan dan isi secret JWT minimal 32 karakter.
+
+   ```bash
+   cp .env.example .env
+   # edit .env dan set JWT_SECRET, ACCESS_TOKEN_TTL_MIN, REFRESH_TOKEN_TTL_DAY, dsb.
+   ```
+
+2. Jalankan migrasi dan seed untuk membuat akun admin default `admin@example.com / Admin#12345`.
+
+   ```bash
+   make migrate
+   make seed
+   ```
+
+3. Login melalui endpoint berikut untuk mendapatkan access token dan cookie refresh:
+
+   ```http
+   POST /api/auth/login
+   Content-Type: application/json
+
+   { "email": "admin@example.com", "password": "Admin#12345" }
+   ```
+
+   Response akan berisi `accessToken` (Bearer JWT) dan informasi user, serta mengatur cookie `__Host_refresh` (HttpOnly, Secure) untuk keperluan refresh.
+
+4. Gunakan endpoint `POST /api/auth/refresh` untuk memperoleh access token baru ketika mendekati kedaluwarsa, dan `POST /api/auth/logout` untuk mencabut sesi.
+
+> **Catatan**
+> - Semua request ke `/api/admin/**` harus menyertakan header `Authorization: Bearer <accessToken>`.
+> - Login dibatasi default 5 percobaan per menit per kombinasi IP/email.
+> - Password admin dapat diubah dengan membuat hash bcrypt baru (misal melalui skrip Go) dan memperbarui seed/data user.
 
 ## ✅ Checklist & Catatan
 

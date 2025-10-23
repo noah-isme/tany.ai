@@ -30,7 +30,10 @@ func main() {
 	}
 	defer database.Close()
 
-	srv := server.New(database)
+	srv, err := server.New(database, cfg)
+	if err != nil {
+		log.Fatalf("init server: %v", err)
+	}
 	if err := srv.Run(ctx); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}

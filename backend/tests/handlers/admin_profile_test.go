@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	admin "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
-	"github.com/tanydotai/tanyai/backend/internal/middleware"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
 )
@@ -106,34 +105,10 @@ func TestAdminProfileGetNotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestAdminProfileGuardUnauthorized(t *testing.T) {
-	t.Setenv("ENABLE_ADMIN_GUARD", "true")
-	t.Setenv("ADMIN_GUARD_MODE", "")
-	router := setupProfileRouter(&profileRepoStub{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/profile", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-}
-
-func TestAdminProfileGuardForbidden(t *testing.T) {
-	t.Setenv("ENABLE_ADMIN_GUARD", "true")
-	t.Setenv("ADMIN_GUARD_MODE", "forbidden")
-	router := setupProfileRouter(&profileRepoStub{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/profile", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusForbidden, rec.Code)
-}
-
 func setupProfileRouter(repo repos.ProfileRepository) *gin.Engine {
 	handler := admin.NewProfileHandler(repo)
 	router := gin.New()
-	group := router.Group("/api/admin", middleware.AuthzAdminStub())
+	group := router.Group("/api/admin")
 	group.GET("/profile", handler.Get)
 	group.PUT("/profile", handler.Put)
 	return router
