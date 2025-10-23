@@ -10,7 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
+	adminhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
 	"github.com/tanydotai/tanyai/backend/internal/knowledge"
+	"github.com/tanydotai/tanyai/backend/internal/middleware"
+	"github.com/tanydotai/tanyai/backend/internal/repos"
 )
 
 const defaultPort = "8080"
@@ -31,12 +34,60 @@ func New(database *sqlx.DB) *Server {
 	chatHandler := handlers.NewChatHandler(base)
 	healthHandler := handlers.NewHealthHandler(database)
 
+	profileRepo := repos.NewProfileRepository(database)
+	skillsRepo := repos.NewSkillRepository(database)
+	servicesRepo := repos.NewServiceRepository(database)
+	projectsRepo := repos.NewProjectRepository(database)
+
+	profileHandler := adminhandlers.NewProfileHandler(profileRepo)
+	skillHandler := adminhandlers.NewSkillHandler(skillsRepo)
+	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo)
+	projectHandler := adminhandlers.NewProjectHandler(projectsRepo)
+	uploadsHandler := adminhandlers.NewUploadsHandler()
+
 	engine.GET("/healthz", healthHandler.HandleHealth)
 
 	api := engine.Group("/api/v1")
 	{
 		api.POST("/chat", chatHandler.HandleChat)
 		api.GET("/knowledge-base", chatHandler.HandleKnowledgeBase)
+	}
+
+	adminGroup := engine.Group("/api/admin", middleware.AuthzAdminStub())
+	{
+		adminGroup.GET("/profile", profileHandler.Get)
+		adminGroup.PUT("/profile", profileHandler.Put)
+
+		skills := adminGroup.Group("/skills")
+		{
+			skills.GET("", skillHandler.List)
+			skills.POST("", skillHandler.Create)
+			skills.PUT(":id", skillHandler.Update)
+			skills.DELETE(":id", skillHandler.Delete)
+			skills.PATCH("/reorder", skillHandler.Reorder)
+		}
+
+		services := adminGroup.Group("/services")
+		{
+			services.GET("", serviceHandler.List)
+			services.POST("", serviceHandler.Create)
+			services.PUT(":id", serviceHandler.Update)
+			services.DELETE(":id", serviceHandler.Delete)
+			services.PATCH("/reorder", serviceHandler.Reorder)
+			services.PATCH(":id/toggle", serviceHandler.Toggle)
+		}
+
+		projects := adminGroup.Group("/projects")
+		{
+			projects.GET("", projectHandler.List)
+			projects.POST("", projectHandler.Create)
+			projects.PUT(":id", projectHandler.Update)
+			projects.DELETE(":id", projectHandler.Delete)
+			projects.PATCH("/reorder", projectHandler.Reorder)
+			projects.PATCH(":id/feature", projectHandler.Feature)
+		}
+
+		adminGroup.POST("/uploads", uploadsHandler.Create)
 	}
 
 	httpSrv := &http.Server{
