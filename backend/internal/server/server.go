@@ -9,8 +9,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/tanydotai/tanyai/backend/internal/auth"
+	"github.com/tanydotai/tanyai/backend/internal/config"
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
 	adminhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
+	authhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/auth"
 	"github.com/tanydotai/tanyai/backend/internal/knowledge"
 	"github.com/tanydotai/tanyai/backend/internal/middleware"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
@@ -25,7 +28,7 @@ type Server struct {
 }
 
 // New constructs an HTTP server with all routes and middleware registered.
-func New(database *sqlx.DB) *Server {
+func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine := gin.New()
 	engine.Use(gin.Logger(), gin.Recovery())
 
@@ -33,6 +36,13 @@ func New(database *sqlx.DB) *Server {
 
 	chatHandler := handlers.NewChatHandler(base)
 	healthHandler := handlers.NewHealthHandler(database)
+
+	userRepo := repos.NewUserRepository(database)
+	tokenService, err := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
+	if err != nil {
+		return nil, err
+	}
+	rateLimiter := auth.NewRateLimiter(cfg.LoginRateLimitPerMin, cfg.LoginRateLimitBurst, 10*time.Minute)
 
 	profileRepo := repos.NewProfileRepository(database)
 	skillsRepo := repos.NewSkillRepository(database)
@@ -44,6 +54,7 @@ func New(database *sqlx.DB) *Server {
 	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo)
 	projectHandler := adminhandlers.NewProjectHandler(projectsRepo)
 	uploadsHandler := adminhandlers.NewUploadsHandler()
+	authHandler := authhandlers.NewHandler(userRepo, tokenService, rateLimiter, cfg.RefreshCookieName)
 
 	engine.GET("/healthz", healthHandler.HandleHealth)
 
@@ -53,7 +64,14 @@ func New(database *sqlx.DB) *Server {
 		api.GET("/knowledge-base", chatHandler.HandleKnowledgeBase)
 	}
 
-	adminGroup := engine.Group("/api/admin", middleware.AuthzAdminStub())
+	authGroup := engine.Group("/api/auth")
+	{
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/refresh", authHandler.Refresh)
+		authGroup.POST("/logout", authHandler.Logout)
+	}
+
+	adminGroup := engine.Group("/api/admin", middleware.Authn(tokenService), middleware.AuthzAdmin())
 	{
 		adminGroup.GET("/profile", profileHandler.Get)
 		adminGroup.PUT("/profile", profileHandler.Put)
@@ -101,7 +119,7 @@ func New(database *sqlx.DB) *Server {
 	return &Server{
 		engine:     engine,
 		httpServer: httpSrv,
-	}
+	}, nil
 }
 
 // Run starts the HTTP server and blocks until shutdown is requested via context.

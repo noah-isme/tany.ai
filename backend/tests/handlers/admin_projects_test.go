@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	admin "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
-	"github.com/tanydotai/tanyai/backend/internal/middleware"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
 )
@@ -66,34 +65,10 @@ func TestAdminProjectsFeatureNotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestAdminProjectsGuardUnauthorized(t *testing.T) {
-	t.Setenv("ENABLE_ADMIN_GUARD", "true")
-	t.Setenv("ADMIN_GUARD_MODE", "")
-	router := setupProjectsRouter(&projectRepoStub{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/projects", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusUnauthorized, rec.Code)
-}
-
-func TestAdminProjectsGuardForbidden(t *testing.T) {
-	t.Setenv("ENABLE_ADMIN_GUARD", "true")
-	t.Setenv("ADMIN_GUARD_MODE", "forbidden")
-	router := setupProjectsRouter(&projectRepoStub{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/projects", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusForbidden, rec.Code)
-}
-
 func setupProjectsRouter(repo repos.ProjectRepository) *gin.Engine {
 	handler := admin.NewProjectHandler(repo)
 	router := gin.New()
-	group := router.Group("/api/admin", middleware.AuthzAdminStub())
+	group := router.Group("/api/admin")
 	projects := group.Group("/projects")
 	projects.GET("", handler.List)
 	projects.POST("", handler.Create)

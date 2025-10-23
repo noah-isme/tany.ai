@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tanydotai/tanyai/backend/internal/auth"
 )
 
 type profileSeed struct {
@@ -60,6 +61,14 @@ type leadSeed struct {
 	Source    string    `db:"source"`
 	CreatedAt time.Time `db:"created_at"`
 }
+
+const (
+	adminUserID       = "66666666-1111-1111-1111-111111111111"
+	adminUserEmail    = "admin@example.com"
+	adminUserName     = "Admin"
+	adminUserPassword = "Admin#12345"
+	adminRole         = "admin"
+)
 
 var (
 	profileData = profileSeed{
@@ -226,6 +235,9 @@ func Seed(ctx context.Context, db *sqlx.DB) error {
 	if err := seedLeads(ctx, tx, leadData); err != nil {
 		return err
 	}
+	if err := seedAdminUser(ctx, tx); err != nil {
+		return err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return err
@@ -329,6 +341,37 @@ ON CONFLICT (id) DO UPDATE SET
 		}
 	}
 	return nil
+}
+
+func seedAdminUser(ctx context.Context, tx *sqlx.Tx) error {
+	hashed, err := auth.HashPassword(adminUserPassword)
+	if err != nil {
+		return fmt.Errorf("hash admin password: %w", err)
+	}
+
+	params := map[string]interface{}{
+		"id":            adminUserID,
+		"email":         adminUserEmail,
+		"password_hash": hashed,
+		"name":          adminUserName,
+	}
+
+	query := `
+INSERT INTO users (id, email, password_hash, name)
+VALUES (:id, LOWER(:email), :password_hash, :name)
+ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        password_hash = EXCLUDED.password_hash,
+        name = EXCLUDED.name,
+        updated_at = NOW();
+`
+
+	if _, err := tx.NamedExecContext(ctx, query, params); err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`, adminUserID, adminRole)
+	return err
 }
 
 func formatTextArray(values []string) string {

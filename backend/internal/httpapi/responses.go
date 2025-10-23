@@ -6,11 +6,12 @@ import "github.com/gin-gonic/gin"
 type ErrorCode string
 
 const (
-	ErrorCodeValidation   ErrorCode = "VALIDATION_ERROR"
-	ErrorCodeNotFound     ErrorCode = "NOT_FOUND"
-	ErrorCodeUnauthorized ErrorCode = "UNAUTHORIZED"
-	ErrorCodeForbidden    ErrorCode = "FORBIDDEN"
-	ErrorCodeInternal     ErrorCode = "INTERNAL"
+	ErrorCodeValidation      ErrorCode = "VALIDATION_ERROR"
+	ErrorCodeNotFound        ErrorCode = "NOT_FOUND"
+	ErrorCodeUnauthorized    ErrorCode = "UNAUTHORIZED"
+	ErrorCodeForbidden       ErrorCode = "FORBIDDEN"
+	ErrorCodeTooManyRequests ErrorCode = "TOO_MANY_REQUESTS"
+	ErrorCodeInternal        ErrorCode = "INTERNAL"
 )
 
 // ErrorBody represents the standard error payload envelope.
