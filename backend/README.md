@@ -31,3 +31,15 @@ PORT=8080 go run ./cmd/api
 ```
 
 Server akan berjalan di `http://localhost:8080`.
+
+## 🗄️ Database Tooling
+
+Backend kini menggunakan PostgreSQL (Supabase kompatibel) sebagai sumber knowledge base. Workflow dasar:
+
+```bash
+cp .env.example .env        # konfigurasi kredensial DB
+make migrate                # jalankan migrasi SQL
+make seed                   # isi contoh data profil/skills/services/projects
+```
+
+Endpoint `GET /healthz` akan mengembalikan status koneksi database melalui field `database`.
