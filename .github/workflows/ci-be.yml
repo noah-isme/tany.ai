@@ -1,0 +1,62 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-be.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-be.yml'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tanyai_test
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@localhost:5432/tanyai_test?sslmode=disable
+      APP_ENV: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Download modules
+        run: go mod download
+        working-directory: backend
+
+      - name: Go vet
+        run: go vet ./...
+        working-directory: backend
+
+      - name: Go build
+        run: go build ./...
+        working-directory: backend
+
+      - name: Database migrations
+        run: make migrate
+        working-directory: backend
+
+      - name: Seed database
+        run: make seed
+        working-directory: backend
+
+      - name: Go test
+        run: go test ./...
+        working-directory: backend

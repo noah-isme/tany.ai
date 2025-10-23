@@ -585,3 +585,28 @@ MIT License - Feel free to use this concept for your own project!
 **Version**: 1.0.0
 
 **Status**: 🚀 Ready for Development
+
+---
+
+## 🗄️ Running with Database (Local & CI)
+
+1. Salin konfigurasi contoh lalu sesuaikan kredensial Supabase/Postgres Anda:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+2. Pastikan variabel `POSTGRES_URL` mengarah ke database yang bisa diakses.
+3. Jalankan migrasi dan seeder contoh:
+   ```bash
+   make -C backend migrate
+   make -C backend seed
+   ```
+4. Start server backend dengan konfigurasi yang sama:
+   ```bash
+   go run ./backend/cmd/api
+   ```
+5. Cek status API dan database melalui endpoint kesehatan:
+   ```bash
+   curl http://localhost:8080/healthz
+   ```
+
+Di lingkungan CI, workflow `ci-be.yml` akan menjalankan rangkaian yang sama (migrate → seed → test) menggunakan service Postgres.
