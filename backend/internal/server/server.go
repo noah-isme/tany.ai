@@ -15,9 +15,9 @@ import (
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
 	adminhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
 	authhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/auth"
-	"github.com/tanydotai/tanyai/backend/internal/knowledge"
 	"github.com/tanydotai/tanyai/backend/internal/middleware"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
+	"github.com/tanydotai/tanyai/backend/internal/services/kb"
 	"github.com/tanydotai/tanyai/backend/internal/storage"
 )
 
@@ -34,9 +34,9 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine := gin.New()
 	engine.Use(gin.Logger(), gin.Recovery())
 
-	base := knowledge.LoadStaticKnowledgeBase()
-
-	chatHandler := handlers.NewChatHandler(base)
+	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
+	chatHistoryRepo := repos.NewChatHistoryRepository(database)
+	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel)
 	healthHandler := handlers.NewHealthHandler(database)
 
 	userRepo := repos.NewUserRepository(database)
@@ -51,10 +51,10 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	servicesRepo := repos.NewServiceRepository(database)
 	projectsRepo := repos.NewProjectRepository(database)
 
-	profileHandler := adminhandlers.NewProfileHandler(profileRepo)
-	skillHandler := adminhandlers.NewSkillHandler(skillsRepo)
-	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo)
-	projectHandler := adminhandlers.NewProjectHandler(projectsRepo)
+	profileHandler := adminhandlers.NewProfileHandler(profileRepo, aggregator.Invalidate)
+	skillHandler := adminhandlers.NewSkillHandler(skillsRepo, aggregator.Invalidate)
+	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo, aggregator.Invalidate)
+	projectHandler := adminhandlers.NewProjectHandler(projectsRepo, aggregator.Invalidate)
 
 	objectStore, err := storage.New(cfg.Storage)
 	if err != nil {
@@ -67,10 +67,13 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 
 	engine.GET("/healthz", healthHandler.HandleHealth)
 
+	knowledgeLimiter := auth.NewRateLimiter(cfg.KnowledgeRateLimitPerMin, cfg.KnowledgeRateLimitBurst, 10*time.Minute)
+	chatLimiter := auth.NewRateLimiter(cfg.ChatRateLimitPerMin, cfg.ChatRateLimitBurst, 10*time.Minute)
+
 	api := engine.Group("/api/v1")
 	{
-		api.POST("/chat", chatHandler.HandleChat)
-		api.GET("/knowledge-base", chatHandler.HandleKnowledgeBase)
+		api.POST("/chat", middleware.RateLimitByIP(chatLimiter), middleware.JSONLogger("chat"), chatHandler.HandleChat)
+		api.GET("/knowledge-base", middleware.RateLimitByIP(knowledgeLimiter), middleware.JSONLogger("knowledge_base"), chatHandler.HandleKnowledgeBase)
 	}
 
 	authGroup := engine.Group("/api/auth")

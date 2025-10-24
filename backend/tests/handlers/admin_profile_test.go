@@ -33,7 +33,7 @@ func TestAdminProfileGetSuccess(t *testing.T) {
 		},
 	}
 
-	router := setupProfileRouter(repo)
+	router := setupProfileRouter(repo, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/profile", nil)
 	rec := httptest.NewRecorder()
@@ -50,7 +50,7 @@ func TestAdminProfileGetSuccess(t *testing.T) {
 func TestAdminProfilePutValidationError(t *testing.T) {
 	t.Setenv("ENABLE_ADMIN_GUARD", "false")
 	repo := &profileRepoStub{}
-	router := setupProfileRouter(repo)
+	router := setupProfileRouter(repo, nil)
 
 	payload := map[string]string{"name": "", "title": ""}
 	body, _ := json.Marshal(payload)
@@ -74,7 +74,8 @@ func TestAdminProfilePutSuccess(t *testing.T) {
 			UpdatedAt: time.Now(),
 		},
 	}
-	router := setupProfileRouter(repo)
+	var invalidated bool
+	router := setupProfileRouter(repo, func() { invalidated = true })
 
 	payload := map[string]string{
 		"name":       "Jane Doe",
@@ -91,12 +92,13 @@ func TestAdminProfilePutSuccess(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "Jane Doe", repo.lastUpsert.Name)
+	require.True(t, invalidated)
 }
 
 func TestAdminProfileGetNotFound(t *testing.T) {
 	t.Setenv("ENABLE_ADMIN_GUARD", "false")
 	repo := &profileRepoStub{getErr: repos.ErrNotFound}
-	router := setupProfileRouter(repo)
+	router := setupProfileRouter(repo, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/profile", nil)
 	rec := httptest.NewRecorder()
@@ -105,8 +107,11 @@ func TestAdminProfileGetNotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func setupProfileRouter(repo repos.ProfileRepository) *gin.Engine {
-	handler := admin.NewProfileHandler(repo)
+func setupProfileRouter(repo repos.ProfileRepository, invalidate func()) *gin.Engine {
+	if invalidate == nil {
+		invalidate = func() {}
+	}
+	handler := admin.NewProfileHandler(repo, invalidate)
 	router := gin.New()
 	group := router.Group("/api/admin")
 	group.GET("/profile", handler.Get)

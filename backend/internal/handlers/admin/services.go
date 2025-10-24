@@ -13,13 +13,14 @@ import (
 
 // ServiceHandler manages admin service endpoints.
 type ServiceHandler struct {
-	repo repos.ServiceRepository
+	repo       repos.ServiceRepository
+	invalidate func()
 }
 
 // NewServiceHandler creates a ServiceHandler.
-func NewServiceHandler(repo repos.ServiceRepository) *ServiceHandler {
+func NewServiceHandler(repo repos.ServiceRepository, invalidate func()) *ServiceHandler {
 	ensureValidators()
-	return &ServiceHandler{repo: repo}
+	return &ServiceHandler{repo: repo, invalidate: invalidate}
 }
 
 // List returns paginated services.
@@ -66,6 +67,10 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusCreated, dto.NewServiceResponse(created))
 }
 
@@ -96,6 +101,10 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusOK, dto.NewServiceResponse(updated))
 }
 
@@ -110,6 +119,10 @@ func (h *ServiceHandler) Delete(c *gin.Context) {
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	c.Status(http.StatusNoContent)
@@ -131,6 +144,10 @@ func (h *ServiceHandler) Reorder(c *gin.Context) {
 	if err := h.repo.Reorder(c.Request.Context(), updates); err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	c.Status(http.StatusNoContent)
@@ -158,6 +175,10 @@ func (h *ServiceHandler) Toggle(c *gin.Context) {
 	if err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	httpapi.RespondData(c, http.StatusOK, dto.NewServiceResponse(service))

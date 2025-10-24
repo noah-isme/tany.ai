@@ -1,4 +1,4 @@
-import { buildSystemPrompt, createMockAnswer, knowledgeBase } from "@/data/knowledge";
+import { resolveApiUrl } from "./env";
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -9,11 +9,18 @@ export type ChatMessage = {
   createdAt: Date;
 };
 
-export const systemMessage: ChatMessage = {
-  id: "system-message",
-  role: "system",
-  content: buildSystemPrompt(knowledgeBase),
-  createdAt: new Date(),
+export type ChatApiResponse = {
+  chatId: string;
+  answer: string;
+  model: string;
+  prompt: string;
+};
+
+export type AssistantReply = {
+  chatId: string;
+  prompt: string;
+  model: string;
+  message: ChatMessage;
 };
 
 function createId(prefix: string): string {
@@ -32,12 +39,6 @@ export function createUserMessage(content: string): ChatMessage {
   };
 }
 
-export function createAssistantMessage(question: string): ChatMessage {
-  return createAssistantReplyFromText(
-    createMockAnswer(question, knowledgeBase),
-  );
-}
-
 export function createAssistantReplyFromText(content: string): ChatMessage {
   return {
     id: createId("assistant"),
@@ -47,9 +48,49 @@ export function createAssistantReplyFromText(content: string): ChatMessage {
   };
 }
 
-export async function askAssistant(question: string): Promise<ChatMessage> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return createAssistantMessage(question);
-}
+export async function askAssistant(
+  question: string,
+  chatId?: string | null,
+): Promise<AssistantReply> {
+  const payload: { question: string; chatId?: string } = { question };
+  if (chatId) {
+    payload.chatId = chatId;
+  }
 
-export const initialMessages: ChatMessage[] = [systemMessage];
+  if (typeof window === "undefined") {
+    const { apiFetch } = await import("./api-client");
+    const response = await apiFetch<ChatApiResponse>("/api/v1/chat", {
+      method: "POST",
+      body: payload,
+      withAuth: false,
+    });
+
+    return {
+      chatId: response.chatId,
+      prompt: response.prompt,
+      model: response.model,
+      message: createAssistantReplyFromText(response.answer),
+    };
+  }
+
+  const response = await fetch(resolveApiUrl("/api/v1/chat"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to call chat API: ${response.status}`);
+  }
+  const data = (await response.json()) as ChatApiResponse;
+
+  return {
+    chatId: data.chatId,
+    prompt: data.prompt,
+    model: data.model,
+    message: createAssistantReplyFromText(data.answer),
+  };
+}

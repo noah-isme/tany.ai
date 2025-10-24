@@ -13,13 +13,14 @@ import (
 
 // ProjectHandler manages admin project endpoints.
 type ProjectHandler struct {
-	repo repos.ProjectRepository
+	repo       repos.ProjectRepository
+	invalidate func()
 }
 
 // NewProjectHandler constructs a ProjectHandler.
-func NewProjectHandler(repo repos.ProjectRepository) *ProjectHandler {
+func NewProjectHandler(repo repos.ProjectRepository, invalidate func()) *ProjectHandler {
 	ensureValidators()
-	return &ProjectHandler{repo: repo}
+	return &ProjectHandler{repo: repo, invalidate: invalidate}
 }
 
 // List returns paginated projects.
@@ -53,6 +54,10 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusCreated, dto.NewProjectResponse(created))
 }
 
@@ -77,6 +82,10 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusOK, dto.NewProjectResponse(updated))
 }
 
@@ -91,6 +100,10 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	c.Status(http.StatusNoContent)
@@ -114,6 +127,10 @@ func (h *ProjectHandler) Reorder(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -135,6 +152,10 @@ func (h *ProjectHandler) Feature(c *gin.Context) {
 	if err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	httpapi.RespondData(c, http.StatusOK, dto.NewProjectResponse(project))

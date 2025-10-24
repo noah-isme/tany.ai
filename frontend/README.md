@@ -4,10 +4,9 @@ Antarmuka pengguna untuk prototipe **tany.ai**. Dibangun dengan Next.js 16, Tail
 modern yang mengikuti blueprint pada dokumen utama proyek.
 
 ## ✨ Fitur Utama
-- **Chat Simulation** – Komponen chat interaktif dengan mock response yang menggambarkan alur integrasi OpenAI GPT.
-- **Knowledge Base Snapshot** – Ringkasan layanan, portofolio, serta kontak yang dipakai untuk membangun context AI.
-- **System Prompt Viewer** – Memperlihatkan prompt dasar yang akan digunakan oleh model bahasa di sisi backend.
-- **Admin Panel** – Shell admin lengkap untuk mengelola profil, skills, layanan, proyek, statistik placeholder, dan pengaturan tema/API key.
+- **Chat Assistant Terhubung Backend** – Komponen chat memanggil endpoint `POST /api/v1/chat`, menyertakan `chatId` lanjutan, dan menampilkan jawaban berbasis knowledge base aktual.
+- **Dynamic Knowledge Snapshot** – Halaman utama dan bubble asistif menarik data dari `GET /api/v1/knowledge-base` sehingga perubahan di Admin langsung terlihat.
+- **Admin Panel** – Shell admin lengkap untuk mengelola profil, skills, layanan, proyek, statistik placeholder, dan pengaturan tema/API key dengan invalidasi cache otomatis.
 
 ## 🛡️ Admin Panel
 
@@ -37,8 +36,8 @@ Panel admin dapat diakses melalui `/login` dan terlindungi oleh middleware JWT +
 ```
 app/                # Halaman Next.js (App Router)
 components/chat/    # Komponen UI chat (bubble, window, input)
-data/               # Knowledge base statis sesuai profil Tanya A.I.
-lib/                # Helper chat dan utilitas mock API
+lib/                # Helper chat, knowledge fetcher, utilitas API
+tests/              # Vitest unit test & Playwright e2e (mock backend)
 ```
 
 ## 🛠️ Perintah Penting
@@ -64,5 +63,4 @@ npm run build   # Build produksi Next.js
 - Konfigurasi linting mengikuti `eslint-config-next` (core web vitals + TypeScript).
 
 ## 🔗 Integrasi Backend
-Mock response pada frontend mengikuti struktur knowledge base yang sama dengan layanan Golang (Gin) sehingga integrasi API di
-fase selanjutnya dapat dilakukan secara mulus.
+Frontend kini mengonsumsi endpoint backend `GET /api/v1/knowledge-base` dan `POST /api/v1/chat` secara langsung. Mock backend Playwright meniru struktur respons tersebut sehingga alur e2e (ubah data admin → knowledge base berubah → chat mengikuti) dapat diverifikasi tanpa backend Go asli.

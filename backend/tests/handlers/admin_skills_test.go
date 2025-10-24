@@ -74,7 +74,7 @@ func TestAdminSkillsUpdateNotFound(t *testing.T) {
 }
 
 func setupSkillsRouter(repo repos.SkillRepository) *gin.Engine {
-	handler := admin.NewSkillHandler(repo)
+	handler := admin.NewSkillHandler(repo, func() {})
 	router := gin.New()
 	group := router.Group("/api/admin")
 	skills := group.Group("/skills")
