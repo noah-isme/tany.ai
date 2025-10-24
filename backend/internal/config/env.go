@@ -10,20 +10,26 @@ import (
 )
 
 const (
-	defaultAppEnv           = "local"
-	defaultMaxOpenConns     = 10
-	defaultMaxIdleConns     = 5
-	defaultConnMaxLifetime  = time.Hour
-	defaultAccessTTLMin     = 15
-	defaultRefreshTTLDays   = 7
-	defaultRefreshCookie    = "__Host_refresh"
-	defaultLoginPerMin      = 5
-	defaultLoginBurst       = 10
-	defaultStorageDriver    = string(StorageDriverSupabase)
-	defaultUploadMaxMB      = 5
-	defaultUploadRatePerMin = 10
-	defaultUploadRateBurst  = 10
-	minJWTSecretLength      = 32
+	defaultAppEnv               = "local"
+	defaultMaxOpenConns         = 10
+	defaultMaxIdleConns         = 5
+	defaultConnMaxLifetime      = time.Hour
+	defaultAccessTTLMin         = 15
+	defaultRefreshTTLDays       = 7
+	defaultRefreshCookie        = "__Host_refresh"
+	defaultLoginPerMin          = 5
+	defaultLoginBurst           = 10
+	defaultStorageDriver        = string(StorageDriverSupabase)
+	defaultUploadMaxMB          = 5
+	defaultUploadRatePerMin     = 10
+	defaultUploadRateBurst      = 10
+	defaultKBCacheTTLSeconds    = 60
+	defaultKnowledgeRatePer5Min = 30
+	defaultKnowledgeRateBurst   = 30
+	defaultChatRatePer5Min      = 30
+	defaultChatRateBurst        = 30
+	defaultAIModel              = "mock-local"
+	minJWTSecretLength          = 32
 )
 
 var defaultAllowedMIMEs = []string{
@@ -35,21 +41,27 @@ var defaultAllowedMIMEs = []string{
 
 // Config contains runtime configuration loaded from environment variables.
 type Config struct {
-	AppEnv                string
-	PostgresURL           string
-	DBMaxOpenConns        int
-	DBMaxIdleConns        int
-	DBConnMaxLifetime     time.Duration
-	JWTSecret             string
-	AccessTokenTTL        time.Duration
-	RefreshTokenTTL       time.Duration
-	RefreshCookieName     string
-	LoginRateLimitPerMin  int
-	LoginRateLimitBurst   int
-	Storage               StorageConfig
-	Upload                UploadConfig
-	UploadRateLimitPerMin int
-	UploadRateLimitBurst  int
+	AppEnv                   string
+	PostgresURL              string
+	DBMaxOpenConns           int
+	DBMaxIdleConns           int
+	DBConnMaxLifetime        time.Duration
+	JWTSecret                string
+	AccessTokenTTL           time.Duration
+	RefreshTokenTTL          time.Duration
+	RefreshCookieName        string
+	LoginRateLimitPerMin     int
+	LoginRateLimitBurst      int
+	Storage                  StorageConfig
+	Upload                   UploadConfig
+	UploadRateLimitPerMin    int
+	UploadRateLimitBurst     int
+	KnowledgeCacheTTL        time.Duration
+	KnowledgeRateLimitPerMin int
+	KnowledgeRateLimitBurst  int
+	ChatRateLimitPerMin      int
+	ChatRateLimitBurst       int
+	ChatModel                string
 }
 
 // StorageDriver enumerates supported object storage providers.
@@ -114,8 +126,14 @@ func Load() (Config, error) {
 			AllowedMIME: append([]string{}, defaultAllowedMIMEs...),
 			AllowSVG:    false,
 		},
-		UploadRateLimitPerMin: defaultUploadRatePerMin,
-		UploadRateLimitBurst:  defaultUploadRateBurst,
+		UploadRateLimitPerMin:    defaultUploadRatePerMin,
+		UploadRateLimitBurst:     defaultUploadRateBurst,
+		KnowledgeCacheTTL:        time.Duration(defaultKBCacheTTLSeconds) * time.Second,
+		KnowledgeRateLimitPerMin: perMinuteFromWindow(defaultKnowledgeRatePer5Min),
+		KnowledgeRateLimitBurst:  defaultKnowledgeRateBurst,
+		ChatRateLimitPerMin:      perMinuteFromWindow(defaultChatRatePer5Min),
+		ChatRateLimitBurst:       defaultChatRateBurst,
+		ChatModel:                defaultAIModel,
 	}
 
 	if cfg.PostgresURL == "" {
@@ -255,11 +273,86 @@ func Load() (Config, error) {
 		cfg.UploadRateLimitBurst = parsed
 	}
 
+	if v := os.Getenv("KB_CACHE_TTL_SECONDS"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid KB_CACHE_TTL_SECONDS: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("KB_CACHE_TTL_SECONDS must be greater than zero")
+		}
+		cfg.KnowledgeCacheTTL = time.Duration(parsed) * time.Second
+	}
+
+	if v := os.Getenv("KB_RATE_LIMIT_PER_5MIN"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid KB_RATE_LIMIT_PER_5MIN: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("KB_RATE_LIMIT_PER_5MIN must be greater than zero")
+		}
+		cfg.KnowledgeRateLimitPerMin = perMinuteFromWindow(parsed)
+		cfg.KnowledgeRateLimitBurst = parsed
+	}
+
+	if v := os.Getenv("KB_RATE_LIMIT_BURST"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid KB_RATE_LIMIT_BURST: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("KB_RATE_LIMIT_BURST must be greater than zero")
+		}
+		cfg.KnowledgeRateLimitBurst = parsed
+	}
+
+	if v := os.Getenv("CHAT_RATE_LIMIT_PER_5MIN"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid CHAT_RATE_LIMIT_PER_5MIN: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("CHAT_RATE_LIMIT_PER_5MIN must be greater than zero")
+		}
+		cfg.ChatRateLimitPerMin = perMinuteFromWindow(parsed)
+		cfg.ChatRateLimitBurst = parsed
+	}
+
+	if v := os.Getenv("CHAT_RATE_LIMIT_BURST"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid CHAT_RATE_LIMIT_BURST: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("CHAT_RATE_LIMIT_BURST must be greater than zero")
+		}
+		cfg.ChatRateLimitBurst = parsed
+	}
+
+	if v := os.Getenv("AI_MODEL"); v != "" {
+		cfg.ChatModel = v
+	}
+
 	if err := populateStorageConfig(&cfg); err != nil {
 		return Config{}, err
 	}
 
 	return cfg, nil
+}
+
+func perMinuteFromWindow(per5min int) int {
+	if per5min <= 0 {
+		return 1
+	}
+	perMinute := per5min / 5
+	if per5min%5 != 0 {
+		perMinute++
+	}
+	if perMinute <= 0 {
+		perMinute = 1
+	}
+	return perMinute
 }
 
 func populateStorageConfig(cfg *Config) error {

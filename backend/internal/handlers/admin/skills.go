@@ -13,13 +13,14 @@ import (
 
 // SkillHandler manages admin skill endpoints.
 type SkillHandler struct {
-	repo repos.SkillRepository
+	repo       repos.SkillRepository
+	invalidate func()
 }
 
 // NewSkillHandler creates a new SkillHandler.
-func NewSkillHandler(repo repos.SkillRepository) *SkillHandler {
+func NewSkillHandler(repo repos.SkillRepository, invalidate func()) *SkillHandler {
 	ensureValidators()
-	return &SkillHandler{repo: repo}
+	return &SkillHandler{repo: repo, invalidate: invalidate}
 }
 
 // List returns paginated list of skills.
@@ -57,6 +58,10 @@ func (h *SkillHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusCreated, dto.NewSkillResponse(created))
 }
 
@@ -85,6 +90,10 @@ func (h *SkillHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if h.invalidate != nil {
+		h.invalidate()
+	}
+
 	httpapi.RespondData(c, http.StatusOK, dto.NewSkillResponse(updated))
 }
 
@@ -99,6 +108,10 @@ func (h *SkillHandler) Delete(c *gin.Context) {
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	c.Status(http.StatusNoContent)
@@ -120,6 +133,10 @@ func (h *SkillHandler) Reorder(c *gin.Context) {
 	if err := h.repo.Reorder(c.Request.Context(), updates); err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	c.Status(http.StatusNoContent)

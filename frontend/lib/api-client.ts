@@ -1,4 +1,3 @@
-import { getAccessToken } from "./auth";
 import { resolveApiUrl } from "./env";
 
 export type ApiRequestInit = {
@@ -59,7 +58,7 @@ export async function apiFetch<T = unknown>(path: string, init: ApiRequestInit =
     }
   }
 
-  const bearer = token ?? (withAuth ? await getAccessToken() : null);
+  const bearer = await resolveAuthToken(token, withAuth);
   if (bearer) {
     requestHeaders.set("Authorization", `Bearer ${bearer}`);
   }
@@ -85,4 +84,21 @@ export async function apiFetch<T = unknown>(path: string, init: ApiRequestInit =
   }
 
   return payload as T;
+}
+
+async function resolveAuthToken(
+  token: string | null | undefined,
+  withAuth: boolean,
+): Promise<string | null> {
+  if (token !== undefined) {
+    return token;
+  }
+  if (!withAuth) {
+    return null;
+  }
+  if (typeof window !== "undefined") {
+    return null;
+  }
+  const { resolveServerAuthToken } = await import("./api-client-server");
+  return resolveServerAuthToken();
 }

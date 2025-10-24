@@ -4,16 +4,20 @@ Layanan API awal untuk prototipe tany.ai. Server ini menyiapkan endpoint dasar d
 sebagai konteks bagi AI assistant.
 
 ## 🚀 Fitur
-- Endpoint `GET /healthz` untuk pemeriksaan kesehatan.
-- Endpoint `GET /api/v1/knowledge-base` untuk melihat data profil, layanan, portofolio, dan paket harga.
-- Endpoint `POST /api/v1/chat` yang mengembalikan mock jawaban berdasarkan knowledge base dan system prompt.
+- Endpoint `GET /healthz` untuk pemeriksaan kesehatan database.
+- Endpoint `GET /api/v1/knowledge-base` yang mengagregasi profil, skills, layanan aktif, dan proyek dari PostgreSQL lengkap dengan cache in-memory + header `ETag`.
+- Endpoint `POST /api/v1/chat` yang menyusun system prompt dari knowledge base internal, menghasilkan jawaban deterministic (atau model terhubung), serta menyimpan riwayat percakapan ke tabel `chat_history`.
+- Invalidasi cache otomatis ketika data admin (profil/skills/services/projects) berubah.
+- Rate limit dan logging terstruktur untuk endpoint publik (`/knowledge-base`, `/chat`).
 
 ## 🧱 Struktur Direktori
 ```
 cmd/api/main.go          # Entry point server
 internal/server/         # Konfigurasi Gin dan routing
-internal/handlers/       # Handler HTTP untuk chat & health
-internal/knowledge/      # Data statis dan utilitas prompt
+internal/handlers/       # Handler HTTP (chat, admin, health)
+internal/services/kb     # Aggregator knowledge base + cache
+internal/services/prompt # Builder prompt yang aman
+internal/repos/          # Repository database (profil, skills, services, projects, chat history)
 ```
 
 ## 🧪 Testing
@@ -21,9 +25,11 @@ internal/knowledge/      # Data statis dan utilitas prompt
 go test ./...
 ```
 
-Unit test meliputi:
-- Validasi konten system prompt.
-- Pengujian handler chat untuk memastikan struktur respons konsisten.
+Unit test mencakup:
+- Aggregator knowledge base (memastikan filter layanan aktif, featured project diurutkan, cache hit/miss).
+- Prompt builder menghasilkan struktur teks konsisten.
+- Handler chat menyimpan riwayat dan men-set header/metadata.
+- Repository `chat_history` untuk memastikan SQL dijalankan benar.
 
 ## ▶️ Menjalankan Server
 ```
@@ -31,6 +37,7 @@ PORT=8080 go run ./cmd/api
 ```
 
 Server akan berjalan di `http://localhost:8080`.
+Endpoint publik dibatasi `KB_RATE_LIMIT_PER_5MIN` / `CHAT_RATE_LIMIT_PER_5MIN` per IP dengan burst sesuai konfigurasi.
 
 ## 🗄️ Database Tooling
 

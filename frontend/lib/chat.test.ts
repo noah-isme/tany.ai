@@ -1,50 +1,88 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import { buildSystemPrompt, knowledgeBase } from "@/data/knowledge";
-
+import { apiFetch } from "./api-client";
+import { resolveApiUrl } from "./env";
 import {
   askAssistant,
-  createAssistantMessage,
   createAssistantReplyFromText,
   createUserMessage,
-  initialMessages,
-  systemMessage,
+  type ChatApiResponse,
 } from "./chat";
 
+vi.mock("./api-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api-client")>();
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+  };
+});
+
 describe("chat helpers", () => {
-  it("membangun pesan system yang konsisten dengan knowledge base", () => {
-    expect(systemMessage.content).toEqual(buildSystemPrompt(knowledgeBase));
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
   });
 
-  it("membuat pesan user yang memiliki ID dan timestamp", () => {
-    const message = createUserMessage("Halo");
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
+  it("creates user messages with unique IDs", () => {
+    const message = createUserMessage("Halo");
     expect(message.role).toBe("user");
     expect(message.id).toMatch(/user-/);
     expect(message.createdAt).toBeInstanceOf(Date);
   });
 
-  it("menghasilkan jawaban AI mock yang menyertakan pertanyaan pengguna", () => {
-    const message = createAssistantMessage("Apa saja layananmu?");
-
+  it("creates assistant replies from plain text", () => {
+    const message = createAssistantReplyFromText("Sukses");
     expect(message.role).toBe("assistant");
-    expect(message.content).toContain("Pertanyaan diterima");
-    expect(message.content).toContain("Apa saja layananmu?");
+    expect(message.content).toBe("Sukses");
   });
 
-  it("dapat membuat balasan manual untuk skenario error", () => {
-    const custom = createAssistantReplyFromText("Mohon coba lagi");
-    expect(custom.content).toBe("Mohon coba lagi");
-    expect(custom.role).toBe("assistant");
-  });
+  it("calls the chat API and maps the response", async () => {
+    const payload: ChatApiResponse = {
+      chatId: "123",
+      answer: "Halo kembali",
+      model: "mock-model",
+      prompt: "prompt",
+    };
 
-  it("askAssistant mengembalikan pesan asisten", async () => {
-    const result = await askAssistant("Ada paket apa saja?");
-    expect(result.role).toBe("assistant");
-  });
+    const isServerLike = typeof window === "undefined";
+    let fetchMock: ReturnType<typeof vi.fn> | null = null;
 
-  it("pesan awal hanya terdiri dari system message", () => {
-    expect(initialMessages).toHaveLength(1);
-    expect(initialMessages[0].role).toBe("system");
+    if (isServerLike) {
+      vi.mocked(apiFetch).mockResolvedValueOnce(payload);
+    } else {
+      fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+        headers: new Headers({ "content-type": "application/json" }),
+      } as Response);
+      vi.stubGlobal("fetch", fetchMock);
+    }
+
+    const result = await askAssistant("Apa kabar?", null);
+
+    if (isServerLike) {
+      expect(apiFetch).toHaveBeenCalledWith("/api/v1/chat", {
+        method: "POST",
+        body: { question: "Apa kabar?" },
+        withAuth: false,
+      });
+    } else if (fetchMock) {
+      expect(fetchMock).toHaveBeenCalledWith(resolveApiUrl("/api/v1/chat"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ question: "Apa kabar?" }),
+        cache: "no-store",
+      });
+    }
+
+    expect(result.chatId).toBe("123");
+    expect(result.message.role).toBe("assistant");
+    expect(result.message.content).toBe("Halo kembali");
   });
 });

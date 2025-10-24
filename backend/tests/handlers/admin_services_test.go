@@ -65,7 +65,7 @@ func TestAdminServicesToggleNotFound(t *testing.T) {
 }
 
 func setupServicesRouter(repo repos.ServiceRepository) *gin.Engine {
-	handler := admin.NewServiceHandler(repo)
+	handler := admin.NewServiceHandler(repo, func() {})
 	router := gin.New()
 	group := router.Group("/api/admin")
 	services := group.Group("/services")

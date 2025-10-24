@@ -12,13 +12,14 @@ import (
 
 // ProfileHandler handles admin profile endpoints.
 type ProfileHandler struct {
-	repo repos.ProfileRepository
+	repo       repos.ProfileRepository
+	invalidate func()
 }
 
 // NewProfileHandler constructs a ProfileHandler.
-func NewProfileHandler(repo repos.ProfileRepository) *ProfileHandler {
+func NewProfileHandler(repo repos.ProfileRepository, invalidate func()) *ProfileHandler {
 	ensureValidators()
-	return &ProfileHandler{repo: repo}
+	return &ProfileHandler{repo: repo, invalidate: invalidate}
 }
 
 // Get returns the current profile or 404 if missing.
@@ -43,6 +44,10 @@ func (h *ProfileHandler) Put(c *gin.Context) {
 	if err != nil {
 		handleRepoError(c, err)
 		return
+	}
+
+	if h.invalidate != nil {
+		h.invalidate()
 	}
 
 	httpapi.RespondData(c, http.StatusOK, dto.NewProfileResponse(profile))

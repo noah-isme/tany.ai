@@ -2,18 +2,58 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tanydotai/tanyai/backend/internal/knowledge"
+	"github.com/google/uuid"
+	"github.com/tanydotai/tanyai/backend/internal/models"
+	"github.com/tanydotai/tanyai/backend/internal/repos"
+	"github.com/tanydotai/tanyai/backend/internal/services/kb"
 )
 
-func TestHandleChatReturnsMockedAnswer(t *testing.T) {
+type stubKnowledge struct {
+	base kb.KnowledgeBase
+}
+
+func (s *stubKnowledge) Get(ctx context.Context) (kb.KnowledgeBase, string, bool, error) {
+	return s.base, "\"etag\"", false, nil
+}
+
+func (s *stubKnowledge) CacheTTL() time.Duration {
+	return time.Minute
+}
+
+type historyRecorder struct {
+	records []models.ChatHistory
+}
+
+func (h *historyRecorder) Create(ctx context.Context, history models.ChatHistory) (models.ChatHistory, error) {
+	history.ID = models.ChatHistory{}.ID
+	history.CreatedAt = time.Now()
+	h.records = append(h.records, history)
+	return history, nil
+}
+
+func (h *historyRecorder) ListRecentByChat(ctx context.Context, chatID uuid.UUID, limit int) ([]models.ChatHistory, error) {
+	return nil, nil
+}
+
+var _ repos.ChatHistoryRepository = (*historyRecorder)(nil)
+
+func TestHandleChatStoresHistory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := NewChatHandler(knowledge.LoadStaticKnowledgeBase())
+	knowledge := &stubKnowledge{base: kb.KnowledgeBase{
+		Profile:  kb.Profile{Name: "Tanya"},
+		Services: []kb.Service{{Name: "Consulting"}},
+		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
+	}}
+	history := &historyRecorder{}
+	handler := NewChatHandler(knowledge, history, "mock-model")
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -27,6 +67,10 @@ func TestHandleChatReturnsMockedAnswer(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", res.Code)
 	}
 
+	if len(history.records) != 1 {
+		t.Fatalf("expected history to be stored")
+	}
+
 	var payload ChatResponse
 	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
@@ -38,11 +82,15 @@ func TestHandleChatReturnsMockedAnswer(t *testing.T) {
 	if payload.Prompt == "" {
 		t.Fatalf("prompt should not be empty")
 	}
+	if payload.Model != "mock-model" {
+		t.Fatalf("expected model to be propagated")
+	}
 }
 
-func TestHandleKnowledgeBaseReturnsSeedData(t *testing.T) {
+func TestHandleKnowledgeBaseSetsCachingHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := NewChatHandler(knowledge.LoadStaticKnowledgeBase())
+	knowledge := &stubKnowledge{base: kb.KnowledgeBase{Profile: kb.Profile{Name: "Tanya"}}}
+	handler := NewChatHandler(knowledge, nil, "mock")
 	engine := gin.New()
 	engine.GET("/kb", handler.HandleKnowledgeBase)
 
@@ -54,12 +102,10 @@ func TestHandleKnowledgeBaseReturnsSeedData(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", res.Code)
 	}
 
-	var base knowledge.KnowledgeBase
-	if err := json.Unmarshal(res.Body.Bytes(), &base); err != nil {
-		t.Fatalf("failed to decode knowledge base: %v", err)
+	if etag := res.Header().Get("ETag"); etag == "" {
+		t.Fatalf("expected ETag header to be set")
 	}
-
-	if base.Profile.Name == "" {
-		t.Fatalf("knowledge base should include profile data")
+	if cacheControl := res.Header().Get("Cache-Control"); cacheControl == "" {
+		t.Fatalf("expected Cache-Control header to be set")
 	}
 }

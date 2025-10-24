@@ -149,6 +149,92 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && url === "/api/v1/knowledge-base") {
+    const payload = {
+      profile: {
+        name: profile.name,
+        title: profile.title,
+        bio: profile.bio,
+        email: profile.email,
+        phone: profile.phone,
+        location: profile.location,
+        avatarUrl: profile.avatar_url,
+        updatedAt: profile.updated_at,
+      },
+      skills: skills
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((skill) => ({ name: skill.name })),
+      services: services
+        .filter((service) => service.is_active)
+        .sort((a, b) => a.order - b.order)
+        .map((service) => {
+          const priceRange = [];
+          if (service.price_min !== null && service.price_min !== undefined) {
+            priceRange.push(`${service.currency ?? ""} ${service.price_min}`.trim());
+          }
+          if (
+            service.price_max !== null &&
+            service.price_max !== undefined &&
+            service.price_max !== service.price_min
+          ) {
+            priceRange.push(`${service.currency ?? ""} ${service.price_max}`.trim());
+          }
+          return {
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            currency: service.currency,
+            durationLabel: service.duration_label,
+            priceRange,
+            order: service.order,
+          };
+        }),
+      projects: projects
+        .slice()
+        .sort((a, b) => {
+          if (a.is_featured === b.is_featured) {
+            return a.order - b.order;
+          }
+          return a.is_featured ? -1 : 1;
+        })
+        .map((project) => ({
+          id: project.id,
+          title: project.title,
+          description: project.description,
+          techStack: project.tech_stack,
+          projectUrl: project.project_url,
+          category: project.category,
+          isFeatured: project.is_featured,
+          order: project.order,
+        })),
+    };
+
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=60",
+      ETag: 'W/"mock-etag"',
+    });
+    res.end(JSON.stringify(payload));
+    return;
+  }
+
+  if (req.method === "POST" && url === "/api/v1/chat") {
+    const body = await parseBody(req);
+    const id = body.chatId && typeof body.chatId === "string" ? body.chatId : randomUUID();
+    const answer = `Pertanyaan diterima: ${body.question}. Layanan aktif kami meliputi ${services
+      .filter((service) => service.is_active)
+      .map((service) => service.name)
+      .join(", ")}.`;
+    sendJson(res, 200, {
+      chatId: id,
+      answer,
+      model: "mock-model",
+      prompt: "mock-prompt",
+    });
+    return;
+  }
+
   if (req.method === "POST" && url === "/api/admin/uploads") {
     req.on("data", () => {});
     req.on("end", () => {

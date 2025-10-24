@@ -42,8 +42,19 @@ test("admin skill management flow", async ({ page }) => {
   await expect(toggle).toBeChecked();
   await toggle.click({ force: true });
   await expect(toggle).not.toBeChecked();
-  await toggle.click({ force: true });
-  await expect(toggle).toBeChecked();
+
+  await page.goto("/");
+  const snippet = page.getByText(/Saya bisa membantu/i).first();
+  await expect(snippet).toBeVisible();
+  await expect(snippet).not.toContainText("AI Discovery Workshop");
+
+  await page.goto("/admin/services");
+  const toggleBack = page
+    .locator("tr", { hasText: "AI Discovery Workshop" })
+    .first()
+    .getByRole("checkbox", { name: /toggle status layanan ai discovery workshop/i });
+  await toggleBack.click({ force: true });
+  await expect(toggleBack).toBeChecked();
 
   await page.goto("/admin/projects");
   const projectRow = page.locator("tr", { hasText: "Sales Enablement Chatbot" }).first();

@@ -66,7 +66,7 @@ func TestAdminProjectsFeatureNotFound(t *testing.T) {
 }
 
 func setupProjectsRouter(repo repos.ProjectRepository) *gin.Engine {
-	handler := admin.NewProjectHandler(repo)
+	handler := admin.NewProjectHandler(repo, func() {})
 	router := gin.New()
 	group := router.Group("/api/admin")
 	projects := group.Group("/projects")
