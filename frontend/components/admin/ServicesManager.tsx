@@ -278,6 +278,7 @@ function ServiceRow({ service, onEdit, onDelete, onToggle, disabled, isPending }
             onToggle();
           }}
           disabled={disabled || isPending}
+          aria-label={`Toggle status layanan ${service.name}`}
         />
       </td>
       <td className="px-4 py-4">

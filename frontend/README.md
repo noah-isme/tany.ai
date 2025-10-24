@@ -21,6 +21,16 @@ Panel admin dapat diakses melalui `/login` dan terlindungi oleh middleware JWT +
 - **Statistik** – Placeholder insight sesuai blueprint README.
 - **Settings** – Preferensi tema dan penyimpanan placeholder API keys (di-hash, tidak diekspose ke klien).
 
+### ✅ Checklist Acceptance Criteria
+
+- [x] Shell admin responsif lengkap (sidebar, header, skip-link, toggle tema tersimpan).
+- [x] Dashboard menampilkan ringkasan profil, layanan, dan proyek.
+- [x] Profil terisi dari API, validasi email/URL, dan pratinjau avatar.
+- [x] Skills mendukung CRUD, drag & drop reorder, serta notifikasi status.
+- [x] Layanan mendukung CRUD, validasi rentang harga, toggle visibilitas, dan reorder.
+- [x] Proyek mendukung CRUD, tech stack dinamis, pratinjau gambar, dan set featured.
+- [x] Statistik & Settings menampilkan placeholder sesuai blueprint dengan toggle tema persisten.
+
 > **Catatan:** Mock backend sederhana tersedia untuk kebutuhan Playwright test. Untuk integrasi penuh gunakan backend Golang (PR-2/PR-3) dan set `API_BASE_URL` ke alamat server tersebut.
 
 ## 🧱 Struktur Direktori

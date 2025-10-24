@@ -70,6 +70,17 @@ const projects = [
   },
 ];
 
+function toNumberOrNull(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function sendJson(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
@@ -195,6 +206,160 @@ const server = createServer(async (req, res) => {
     const index = skills.findIndex((skill) => skill.id === id);
     if (index >= 0) {
       skills.splice(index, 1);
+    }
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && url === "/api/admin/services") {
+    const body = await parseBody(req);
+    const newService = {
+      id: randomUUID(),
+      name: body.name ?? "",
+      description: body.description ?? "",
+      price_min: toNumberOrNull(body.price_min),
+      price_max: toNumberOrNull(body.price_max),
+      currency: body.currency ?? "",
+      duration_label: body.duration_label ?? "",
+      is_active: typeof body.is_active === "boolean" ? body.is_active : true,
+      order: services.length,
+    };
+    services.push(newService);
+    sendJson(res, 201, { data: newService });
+    return;
+  }
+
+  if (req.method === "PUT" && url.startsWith("/api/admin/services/")) {
+    const [, , , , serviceId] = url.split("/");
+    const body = await parseBody(req);
+    const target = services.find((service) => service.id === serviceId);
+    if (target) {
+      Object.assign(target, {
+        name: body.name ?? target.name,
+        description: body.description ?? target.description,
+        price_min: body.price_min !== undefined ? toNumberOrNull(body.price_min) : target.price_min,
+        price_max: body.price_max !== undefined ? toNumberOrNull(body.price_max) : target.price_max,
+        currency: body.currency ?? target.currency,
+        duration_label: body.duration_label ?? target.duration_label,
+        is_active: typeof body.is_active === "boolean" ? body.is_active : target.is_active,
+      });
+      sendJson(res, 200, { data: target });
+      return;
+    }
+    sendJson(res, 404, { error: { message: "Service not found" } });
+    return;
+  }
+
+  if (req.method === "PATCH" && url === "/api/admin/services/reorder") {
+    const body = await parseBody(req);
+    body.forEach((item) => {
+      const target = services.find((service) => service.id === item.id);
+      if (target) {
+        target.order = item.order;
+      }
+    });
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "PATCH" && url.match(/^\/api\/admin\/services\/.+\/toggle$/)) {
+    const serviceId = url.split("/")[4];
+    const body = await parseBody(req);
+    const target = services.find((service) => service.id === serviceId);
+    if (target) {
+      const nextState =
+        typeof body.is_active === "boolean" ? body.is_active : !target.is_active;
+      target.is_active = nextState;
+      sendJson(res, 200, { data: target });
+      return;
+    }
+    sendJson(res, 404, { error: { message: "Service not found" } });
+    return;
+  }
+
+  if (req.method === "DELETE" && url.startsWith("/api/admin/services/")) {
+    const serviceId = url.split("/").pop();
+    const index = services.findIndex((service) => service.id === serviceId);
+    if (index >= 0) {
+      services.splice(index, 1);
+    }
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && url === "/api/admin/projects") {
+    const body = await parseBody(req);
+    const newProject = {
+      id: randomUUID(),
+      title: body.title ?? "",
+      description: body.description ?? "",
+      tech_stack: Array.isArray(body.tech_stack) ? body.tech_stack : [],
+      image_url: body.image_url ?? "",
+      project_url: body.project_url ?? "",
+      category: body.category ?? "",
+      order: projects.length,
+      is_featured: typeof body.is_featured === "boolean" ? body.is_featured : false,
+    };
+    projects.push(newProject);
+    sendJson(res, 201, { data: newProject });
+    return;
+  }
+
+  if (req.method === "PUT" && url.startsWith("/api/admin/projects/")) {
+    const [, , , , projectId] = url.split("/");
+    const body = await parseBody(req);
+    const target = projects.find((project) => project.id === projectId);
+    if (target) {
+      Object.assign(target, {
+        title: body.title ?? target.title,
+        description: body.description ?? target.description,
+        tech_stack: Array.isArray(body.tech_stack) ? body.tech_stack : target.tech_stack,
+        image_url: body.image_url ?? target.image_url,
+        project_url: body.project_url ?? target.project_url,
+        category: body.category ?? target.category,
+        is_featured: typeof body.is_featured === "boolean" ? body.is_featured : target.is_featured,
+      });
+      sendJson(res, 200, { data: target });
+      return;
+    }
+    sendJson(res, 404, { error: { message: "Project not found" } });
+    return;
+  }
+
+  if (req.method === "PATCH" && url === "/api/admin/projects/reorder") {
+    const body = await parseBody(req);
+    body.forEach((item) => {
+      const target = projects.find((project) => project.id === item.id);
+      if (target) {
+        target.order = item.order;
+      }
+    });
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "PATCH" && url.match(/^\/api\/admin\/projects\/.+\/feature$/)) {
+    const projectId = url.split("/")[4];
+    const body = await parseBody(req);
+    const target = projects.find((project) => project.id === projectId);
+    if (target) {
+      target.is_featured = typeof body.is_featured === "boolean" ? body.is_featured : true;
+      sendJson(res, 200, { data: target });
+      return;
+    }
+    sendJson(res, 404, { error: { message: "Project not found" } });
+    return;
+  }
+
+  if (req.method === "DELETE" && url.startsWith("/api/admin/projects/")) {
+    const projectId = url.split("/").pop();
+    const index = projects.findIndex((project) => project.id === projectId);
+    if (index >= 0) {
+      projects.splice(index, 1);
     }
     res.writeHead(204);
     res.end();

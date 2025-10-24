@@ -3,6 +3,26 @@ import { z } from "zod";
 const optionalString = (schema: z.ZodString) =>
   z.union([schema, z.literal("")]).transform((value) => (value === "" ? "" : value));
 
+const priceField = (message: string) =>
+  z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (value === null || value === undefined || value === "") {
+        return null;
+      }
+      if (typeof value === "number") {
+        return value;
+      }
+      const parsed = Number(value);
+      return parsed;
+    })
+    .refine(
+      (value) =>
+        value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0),
+      message,
+    );
+
 export const loginSchema = z.object({
   email: z.string({ required_error: "Email wajib diisi" }).min(1, "Email wajib diisi").email("Email tidak valid"),
   password: z
@@ -28,16 +48,8 @@ export const serviceSchema = z
   .object({
     name: z.string().min(2, "Nama layanan minimal 2 karakter").max(120),
     description: optionalString(z.string().max(2000, "Deskripsi maksimal 2000 karakter")),
-    price_min: z
-      .string()
-      .optional()
-      .transform((value) => (value && value !== "" ? Number(value) : null))
-      .refine((value) => value === null || (!Number.isNaN(value) && value >= 0), "Harga minimal tidak valid"),
-    price_max: z
-      .string()
-      .optional()
-      .transform((value) => (value && value !== "" ? Number(value) : null))
-      .refine((value) => value === null || (!Number.isNaN(value) && value >= 0), "Harga maksimal tidak valid"),
+    price_min: priceField("Harga minimal tidak valid"),
+    price_max: priceField("Harga maksimal tidak valid"),
     currency: optionalString(z.string().max(3, "Maksimal 3 karakter")),
     duration_label: optionalString(z.string().max(80, "Durasi maksimal 80 karakter")),
     is_active: z.boolean().optional().default(true),
