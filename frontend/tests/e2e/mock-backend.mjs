@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 4000);
 
@@ -96,16 +96,21 @@ function parseBody(req) {
   });
 }
 
-const payload = Buffer.from(
-  JSON.stringify({
-    sub: "admin",
-    email: "admin@example.com",
-    roles: ["admin"],
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  }),
-).toString("base64url");
+const JWT_SECRET = process.env.JWT_SECRET ?? "test-secret";
 
-const token = `header.${payload}.signature`;
+function signToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64url");
+  return `${header}.${body}.${signature}`;
+}
+
+const token = signToken({
+  sub: "admin",
+  email: "admin@example.com",
+  roles: ["admin"],
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
 
 const server = createServer(async (req, res) => {
   const url = req.url ?? "";
