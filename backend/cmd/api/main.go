@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
+	"log/slog"
+	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -13,6 +17,12 @@ import (
 )
 
 func main() {
+	logFile, err := setupLogger()
+	if err != nil {
+		log.Fatalf("setup logger: %v", err)
+	}
+	defer logFile.Close()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -37,4 +47,21 @@ func main() {
 	if err := srv.Run(ctx); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
+}
+
+func setupLogger() (*os.File, error) {
+	if err := os.MkdirAll("logs", 0o755); err != nil {
+		return nil, err
+	}
+
+	path := filepath.Join("logs", "api.log")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return nil, err
+	}
+
+	handler := slog.NewJSONHandler(io.MultiWriter(os.Stdout, file), &slog.HandlerOptions{AddSource: true})
+	slog.SetDefault(slog.New(handler))
+
+	return file, nil
 }

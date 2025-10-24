@@ -32,7 +32,7 @@ type Server struct {
 // New constructs an HTTP server with all routes and middleware registered.
 func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine := gin.New()
-	engine.Use(gin.Logger(), gin.Recovery())
+	engine.Use(middleware.RequestLogger(), middleware.RecoverWithLog(), middleware.SecurityHeaders())
 
 	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
 	chatHistoryRepo := repos.NewChatHistoryRepository(database)

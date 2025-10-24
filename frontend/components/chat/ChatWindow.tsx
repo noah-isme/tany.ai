@@ -31,14 +31,21 @@ function buildAssistSnippet(base: KnowledgeBase): string {
   return `${intro} ${serviceText} ${projectText}`;
 }
 
-export function ChatWindow() {
+type ChatWindowProps = {
+  initialKnowledge?: KnowledgeBase | null;
+};
+
+export function ChatWindow({ initialKnowledge = null }: ChatWindowProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
-  const [knowledge, setKnowledge] = useState<KnowledgeBase | null>(null);
+  const [knowledge, setKnowledge] = useState<KnowledgeBase | null>(initialKnowledge);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialKnowledge) {
+      return;
+    }
     let active = true;
     fetchKnowledgeBase()
       .then((data) => {
@@ -52,7 +59,7 @@ export function ChatWindow() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialKnowledge]);
 
   const handleSend = async (question: string) => {
     const userMessage = createUserMessage(question);
