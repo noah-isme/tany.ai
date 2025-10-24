@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/tanydotai/tanyai/backend/internal/knowledge"
 	"github.com/tanydotai/tanyai/backend/internal/middleware"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
+	"github.com/tanydotai/tanyai/backend/internal/storage"
 )
 
 const defaultPort = "8080"
@@ -53,7 +55,14 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	skillHandler := adminhandlers.NewSkillHandler(skillsRepo)
 	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo)
 	projectHandler := adminhandlers.NewProjectHandler(projectsRepo)
-	uploadsHandler := adminhandlers.NewUploadsHandler()
+
+	objectStore, err := storage.New(cfg.Storage)
+	if err != nil {
+		return nil, err
+	}
+	uploadsLogger := log.New(os.Stdout, "", 0)
+	uploadsHandler := adminhandlers.NewUploadsHandler(objectStore, cfg.Upload, uploadsLogger)
+	uploadLimiter := auth.NewRateLimiter(cfg.UploadRateLimitPerMin, cfg.UploadRateLimitBurst, 10*time.Minute)
 	authHandler := authhandlers.NewHandler(userRepo, tokenService, rateLimiter, cfg.RefreshCookieName)
 
 	engine.GET("/healthz", healthHandler.HandleHealth)
@@ -105,7 +114,7 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 			projects.PATCH(":id/feature", projectHandler.Feature)
 		}
 
-		adminGroup.POST("/uploads", uploadsHandler.Create)
+		adminGroup.POST("/uploads", middleware.RateLimitByIP(uploadLimiter), uploadsHandler.Create)
 	}
 
 	httpSrv := &http.Server{

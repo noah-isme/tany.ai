@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import type { ActionResult } from "@/lib/action-result";
 import type { Profile } from "@/lib/types/admin";
 import { profileSchema, type ProfileFormValues } from "@/lib/validators";
 
+import { ImageUploader } from "./ImageUploader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -111,11 +112,18 @@ export function ProfileForm({ profile, onSubmit }: ProfileFormProps) {
             invalid={Boolean(errors.location)}
           />
         </Field>
-        <Field label="Avatar URL" error={errors.avatar_url?.message}>
-          <Input
-            placeholder="https://cdn.example.com/avatar.png"
-            {...register("avatar_url")}
-            invalid={Boolean(errors.avatar_url)}
+        <Field label="Avatar" error={errors.avatar_url?.message}>
+          <Controller
+            name="avatar_url"
+            control={control}
+            render={({ field }) => (
+              <ImageUploader
+                value={field.value ?? ""}
+                onChange={(url) => field.onChange(url)}
+                onBlur={field.onBlur}
+                disabled={isPending}
+              />
+            )}
           />
         </Field>
 
@@ -157,7 +165,7 @@ export function ProfileForm({ profile, onSubmit }: ProfileFormProps) {
             )}
           </div>
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Gunakan URL publik (misalnya dari CDN). Upload asli akan tersedia di tahap selanjutnya.
+            Unggahan akan tersimpan otomatis ke storage dan menghasilkan URL publik.
           </p>
         </div>
       </aside>

@@ -149,6 +149,21 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && url === "/api/admin/uploads") {
+    req.on("data", () => {});
+    req.on("end", () => {
+      sendJson(res, 201, {
+        data: {
+          url: `https://mock-storage.example.com/uploads/${randomUUID()}.png`,
+          key: `uploads/${randomUUID()}.png`,
+          contentType: "image/png",
+          size: 2048,
+        },
+      });
+    });
+    return;
+  }
+
   if (req.method === "GET" && url === "/api/admin/profile") {
     sendJson(res, 200, { data: profile });
     return;
