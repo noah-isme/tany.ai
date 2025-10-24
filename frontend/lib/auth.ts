@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { decodeJwt, JwtPayload, tokenHasRole } from "./jwt";
+import { decodeJwt, type JwtPayload } from "./jwt";
+import { verifyAccessToken } from "./jwt-verify";
 
 export const ACCESS_TOKEN_COOKIE = "ta_access";
 export const THEME_COOKIE = "ta_theme";
@@ -64,21 +65,28 @@ export async function getAccessToken(): Promise<string | null> {
   return cookieStore.get(ACCESS_TOKEN_COOKIE)?.value ?? null;
 }
 
+function normalizeUserFromPayload(payload: JwtPayload): CurrentUser {
+  const roles = Array.isArray(payload.roles)
+    ? payload.roles.filter((role): role is string => typeof role === "string")
+    : [];
+  return {
+    id: typeof payload.sub === "string" ? payload.sub : "",
+    email: typeof payload.email === "string" ? payload.email : "",
+    roles,
+    expiresAt: typeof payload.exp === "number" ? payload.exp : undefined,
+  };
+}
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = await getAccessToken();
   if (!token) {
     return null;
   }
-  const payload = decodeJwt(token);
+  const payload = await verifyAccessToken(token);
   if (!payload) {
     return null;
   }
-  return {
-    id: typeof payload.sub === "string" ? payload.sub : "",
-    email: typeof payload.email === "string" ? payload.email : "",
-    roles: Array.isArray(payload.roles) ? payload.roles : [],
-    expiresAt: typeof payload.exp === "number" ? payload.exp : undefined,
-  };
+  return normalizeUserFromPayload(payload);
 }
 
 export async function ensureAdminUser(): Promise<CurrentUser> {
@@ -86,8 +94,7 @@ export async function ensureAdminUser(): Promise<CurrentUser> {
   if (!user) {
     throw new MissingAccessTokenError();
   }
-  const token = await getAccessToken();
-  if (!token || !tokenHasRole(token, "admin")) {
+  if (!user.roles.map((role) => role.toLowerCase()).includes("admin")) {
     throw new ForbiddenError();
   }
   return user;
@@ -98,9 +105,8 @@ export async function requireAdminOrRedirect(): Promise<CurrentUser> {
   if (!user) {
     redirect("/login");
   }
-  const token = await getAccessToken();
-  if (!token || !tokenHasRole(token, "admin")) {
-    redirect("/login");
+  if (!user.roles.map((role) => role.toLowerCase()).includes("admin")) {
+    redirect("/403");
   }
   return user;
 }

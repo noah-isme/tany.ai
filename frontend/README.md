@@ -42,7 +42,7 @@ npm run build   # Build produksi Next.js
 
 ### Menjalankan Admin Panel
 
-1. Set `API_BASE_URL` pada `.env` (contoh `http://localhost:8080`) sesuai backend yang berjalan.
+1. Set `API_BASE_URL` dan `JWT_SECRET` pada `.env` (contoh `http://localhost:8080` serta secret acak minimal 32 karakter) sesuai backend yang berjalan.
 2. Jalankan `npm run dev` dan buka `http://localhost:3000/login`.
 3. Masuk menggunakan kredensial admin backend (`admin@example.com / Admin#12345`).
 4. Semua tab admin menggunakan server actions + token httpOnly sehingga data tidak terekspos di bundle klien.
