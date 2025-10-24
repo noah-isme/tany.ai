@@ -11,10 +11,13 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
+    extraHTTPHeaders: {
+      "x-forwarded-proto": "https",
+    },
   },
   webServer: [
     {
-      command: `npm run dev`,
+      command: `npm run build && npm run start`,
       port: PORT,
       reuseExistingServer: !process.env.CI,
       env: {
@@ -22,6 +25,9 @@ export default defineConfig({
         MOCK_API_PORT: String(API_PORT),
         API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
         JWT_SECRET,
+        PORT: String(PORT),
+        NODE_ENV: "production",
+        ALLOW_INSECURE_AUTH_COOKIE: "true",
       },
     },
     {

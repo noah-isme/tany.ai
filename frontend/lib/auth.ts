@@ -43,13 +43,14 @@ function computeMaxAge(payload: JwtPayload | null): number | undefined {
 export async function setAccessTokenCookie(token: string): Promise<void> {
   const payload = decodeJwt(token);
   const maxAge = computeMaxAge(payload);
+  const allowInsecureCookie = process.env.ALLOW_INSECURE_AUTH_COOKIE === "true";
   const cookieStore = await cookies();
   cookieStore.set({
     name: ACCESS_TOKEN_COOKIE,
     value: token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !allowInsecureCookie,
     path: "/",
     maxAge,
   });
