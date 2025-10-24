@@ -7,6 +7,15 @@ import { verifyAccessToken } from "@/lib/jwt-verify";
 const ADMIN_PREFIX = "/admin";
 
 export async function middleware(request: NextRequest) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    request.headers.get("x-forwarded-proto") !== "https"
+  ) {
+    const url = request.nextUrl.clone();
+    url.protocol = "https:";
+    return NextResponse.redirect(url);
+  }
+
   const { pathname } = request.nextUrl;
 
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value ?? "";
@@ -23,7 +32,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login"],
+  matcher: ["/(.*)"],
 };
 
 function createLoginRedirect(request: NextRequest): NextResponse {

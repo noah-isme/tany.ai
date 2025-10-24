@@ -665,3 +665,20 @@ UPLOAD_RATE_LIMIT_BURST=10
 ### Integrasi Frontend
 
 Admin Panel menyediakan uploader dengan pratinjau gambar, progres bar, dan toast status. Hasil unggahan otomatis mengisi field `avatar_url` (profil) dan `image_url` (proyek) sebelum disimpan lewat endpoint CRUD admin.
+
+---
+
+## 🔐 Security & CI Stabilization
+
+- ✅ SecurityHeaders & Content Security Policy diterapkan di backend dan frontend.
+- ✅ JSON structured logs melalui `log/slog` untuk setiap request (latency & status).
+- ✅ Global Error Boundary menampilkan fallback ramah saat terjadi runtime error.
+- ✅ Redirect otomatis HTTP → HTTPS aktif di production middleware.
+- ✅ CI menjalankan lint/test/build untuk Go & Next.js serta memasang Playwright browsers otomatis.
+
+### 🛠️ Developer Experience
+
+```bash
+make dev  # run API + web
+tail -f logs/api.log  # lihat output structured logs
+```

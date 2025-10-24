@@ -55,7 +55,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="min-h-[480px] rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
-          <ChatWindow />
+          <ChatWindow initialKnowledge={knowledgeBase} />
         </div>
       </section>
       <section className="space-y-6">
