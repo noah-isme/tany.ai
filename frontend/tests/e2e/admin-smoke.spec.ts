@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 import { test, expect } from "@playwright/test";
 
 test("admin skill management flow", async ({ page }) => {
@@ -48,6 +50,38 @@ test("admin skill management flow", async ({ page }) => {
   const featureButton = projectRow.getByRole("button", { name: "Jadikan featured" });
   await featureButton.click();
   await expect(projectRow.getByRole("button", { name: "Hapus featured" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Tambah Proyek" }).click();
+  await page.fill('input[placeholder="Contoh: Website SaaS"]', "Project Upload Test");
+  await page.fill('textarea[placeholder="Ringkasan singkat hasil dan dampak proyek"]', "Testing upload flow");
+  await page.fill('input[placeholder="Contoh: SaaS / Fintech"]', "Testing");
+  await page.locator('button', { hasText: 'Tambah Tech' }).click();
+  await page.locator('input[placeholder="Contoh: Next.js"]').last().fill("Playwright");
+
+  const imageField = page.locator("label", { hasText: "Gambar Proyek" });
+  const fileBytes = Buffer.from("fake image content");
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/admin/uploads") && response.status() === 201),
+    imageField.locator('input[data-testid="image-uploader-input"]').setInputFiles({
+      name: "preview.png",
+      mimeType: "image/png",
+      buffer: fileBytes,
+    }),
+  ]);
+  const previewImage = imageField.locator('img[alt="Pratinjau gambar"]');
+  await expect(previewImage).toBeVisible();
+  await expect(previewImage).toHaveAttribute("src", /mock-storage/);
+
+  await page.fill('input[placeholder="https://"]', "https://example.com/project" );
+  await page.getByRole("button", { name: "Simpan proyek" }).click();
+
+  const newProjectRow = page.locator("tr", { hasText: "Project Upload Test" }).first();
+  await expect(newProjectRow).toBeVisible();
+
+  await newProjectRow.getByRole("button", { name: "Edit" }).click();
+  const editImageField = page.locator("label", { hasText: "Gambar Proyek" });
+  await expect(editImageField.locator('input[placeholder="https://cdn.example.com/image.png"]').first()).toHaveValue(/mock-storage/);
+  await page.getByRole("button", { name: "Batal" }).click();
 
   await page.getByLabel("Keluar").click();
   await page.waitForURL("**/login");

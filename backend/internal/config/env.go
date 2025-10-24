@@ -5,35 +5,92 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	defaultAppEnv          = "local"
-	defaultMaxOpenConns    = 10
-	defaultMaxIdleConns    = 5
-	defaultConnMaxLifetime = time.Hour
-	defaultAccessTTLMin    = 15
-	defaultRefreshTTLDays  = 7
-	defaultRefreshCookie   = "__Host_refresh"
-	defaultLoginPerMin     = 5
-	defaultLoginBurst      = 10
-	minJWTSecretLength     = 32
+	defaultAppEnv           = "local"
+	defaultMaxOpenConns     = 10
+	defaultMaxIdleConns     = 5
+	defaultConnMaxLifetime  = time.Hour
+	defaultAccessTTLMin     = 15
+	defaultRefreshTTLDays   = 7
+	defaultRefreshCookie    = "__Host_refresh"
+	defaultLoginPerMin      = 5
+	defaultLoginBurst       = 10
+	defaultStorageDriver    = string(StorageDriverSupabase)
+	defaultUploadMaxMB      = 5
+	defaultUploadRatePerMin = 10
+	defaultUploadRateBurst  = 10
+	minJWTSecretLength      = 32
 )
+
+var defaultAllowedMIMEs = []string{
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+	"image/svg+xml",
+}
 
 // Config contains runtime configuration loaded from environment variables.
 type Config struct {
-	AppEnv               string
-	PostgresURL          string
-	DBMaxOpenConns       int
-	DBMaxIdleConns       int
-	DBConnMaxLifetime    time.Duration
-	JWTSecret            string
-	AccessTokenTTL       time.Duration
-	RefreshTokenTTL      time.Duration
-	RefreshCookieName    string
-	LoginRateLimitPerMin int
-	LoginRateLimitBurst  int
+	AppEnv                string
+	PostgresURL           string
+	DBMaxOpenConns        int
+	DBMaxIdleConns        int
+	DBConnMaxLifetime     time.Duration
+	JWTSecret             string
+	AccessTokenTTL        time.Duration
+	RefreshTokenTTL       time.Duration
+	RefreshCookieName     string
+	LoginRateLimitPerMin  int
+	LoginRateLimitBurst   int
+	Storage               StorageConfig
+	Upload                UploadConfig
+	UploadRateLimitPerMin int
+	UploadRateLimitBurst  int
+}
+
+// StorageDriver enumerates supported object storage providers.
+type StorageDriver string
+
+const (
+	StorageDriverSupabase StorageDriver = "supabase"
+	StorageDriverS3       StorageDriver = "s3"
+)
+
+// StorageConfig captures configuration for object storage integrations.
+type StorageConfig struct {
+	Driver   StorageDriver
+	Supabase SupabaseConfig
+	S3       S3Config
+}
+
+// SupabaseConfig stores Supabase storage settings.
+type SupabaseConfig struct {
+	URL         string
+	Bucket      string
+	ServiceRole string
+	PublicURL   string
+}
+
+// S3Config stores AWS S3 compatible settings.
+type S3Config struct {
+	Region          string
+	Bucket          string
+	Endpoint        string
+	PublicBaseURL   string
+	AccessKeyID     string
+	SecretAccessKey string
+	ForcePathStyle  bool
+}
+
+// UploadConfig defines upload validation rules.
+type UploadConfig struct {
+	MaxBytes    int64
+	AllowedMIME []string
+	AllowSVG    bool
 }
 
 // Load reads configuration values from the process environment.
@@ -49,6 +106,16 @@ func Load() (Config, error) {
 		RefreshCookieName:    defaultRefreshCookie,
 		LoginRateLimitPerMin: defaultLoginPerMin,
 		LoginRateLimitBurst:  defaultLoginBurst,
+		Storage: StorageConfig{
+			Driver: StorageDriver(strings.ToLower(getEnv("STORAGE_DRIVER", defaultStorageDriver))),
+		},
+		Upload: UploadConfig{
+			MaxBytes:    int64(defaultUploadMaxMB) * 1024 * 1024,
+			AllowedMIME: append([]string{}, defaultAllowedMIMEs...),
+			AllowSVG:    false,
+		},
+		UploadRateLimitPerMin: defaultUploadRatePerMin,
+		UploadRateLimitBurst:  defaultUploadRateBurst,
 	}
 
 	if cfg.PostgresURL == "" {
@@ -132,7 +199,139 @@ func Load() (Config, error) {
 		cfg.LoginRateLimitBurst = parsed
 	}
 
+	if v := os.Getenv("UPLOAD_MAX_MB"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid UPLOAD_MAX_MB: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("UPLOAD_MAX_MB must be greater than zero")
+		}
+		cfg.Upload.MaxBytes = int64(parsed) * 1024 * 1024
+	}
+
+	if v := os.Getenv("UPLOAD_ALLOWED_MIME"); v != "" {
+		tokens := strings.Split(v, ",")
+		allowed := make([]string, 0, len(tokens))
+		for _, token := range tokens {
+			trimmed := strings.TrimSpace(token)
+			if trimmed != "" {
+				allowed = append(allowed, strings.ToLower(trimmed))
+			}
+		}
+		if len(allowed) == 0 {
+			return Config{}, errors.New("UPLOAD_ALLOWED_MIME must contain at least one mime type")
+		}
+		cfg.Upload.AllowedMIME = allowed
+	}
+
+	if v := os.Getenv("ALLOW_SVG"); v != "" {
+		enabled, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid ALLOW_SVG: %w", err)
+		}
+		cfg.Upload.AllowSVG = enabled
+	}
+
+	if v := os.Getenv("UPLOAD_RATE_LIMIT_PER_MIN"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid UPLOAD_RATE_LIMIT_PER_MIN: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("UPLOAD_RATE_LIMIT_PER_MIN must be greater than zero")
+		}
+		cfg.UploadRateLimitPerMin = parsed
+	}
+
+	if v := os.Getenv("UPLOAD_RATE_LIMIT_BURST"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid UPLOAD_RATE_LIMIT_BURST: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("UPLOAD_RATE_LIMIT_BURST must be greater than zero")
+		}
+		cfg.UploadRateLimitBurst = parsed
+	}
+
+	if err := populateStorageConfig(&cfg); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
+}
+
+func populateStorageConfig(cfg *Config) error {
+	switch cfg.Storage.Driver {
+	case StorageDriverSupabase:
+		supabaseURL := strings.TrimSpace(os.Getenv("SUPABASE_URL"))
+		if supabaseURL == "" {
+			return errors.New("SUPABASE_URL is required when STORAGE_DRIVER=supabase")
+		}
+		bucket := strings.TrimSpace(os.Getenv("SUPABASE_BUCKET"))
+		if bucket == "" {
+			return errors.New("SUPABASE_BUCKET is required when STORAGE_DRIVER=supabase")
+		}
+		serviceRole := strings.TrimSpace(os.Getenv("SUPABASE_SERVICE_ROLE"))
+		if serviceRole == "" {
+			return errors.New("SUPABASE_SERVICE_ROLE is required when STORAGE_DRIVER=supabase")
+		}
+
+		publicURL := strings.TrimSpace(os.Getenv("SUPABASE_PUBLIC_URL"))
+		if publicURL == "" {
+			publicURL = strings.TrimSuffix(supabaseURL, "/") + "/storage/v1/object/public/" + bucket
+		}
+
+		cfg.Storage.Supabase = SupabaseConfig{
+			URL:         strings.TrimSuffix(supabaseURL, "/"),
+			Bucket:      bucket,
+			ServiceRole: serviceRole,
+			PublicURL:   strings.TrimSuffix(publicURL, "/"),
+		}
+	case StorageDriverS3:
+		region := strings.TrimSpace(os.Getenv("S3_REGION"))
+		if region == "" {
+			return errors.New("S3_REGION is required when STORAGE_DRIVER=s3")
+		}
+		bucket := strings.TrimSpace(os.Getenv("S3_BUCKET"))
+		if bucket == "" {
+			return errors.New("S3_BUCKET is required when STORAGE_DRIVER=s3")
+		}
+		accessKey := strings.TrimSpace(os.Getenv("AWS_ACCESS_KEY_ID"))
+		if accessKey == "" {
+			return errors.New("AWS_ACCESS_KEY_ID is required when STORAGE_DRIVER=s3")
+		}
+		secretKey := strings.TrimSpace(os.Getenv("AWS_SECRET_ACCESS_KEY"))
+		if secretKey == "" {
+			return errors.New("AWS_SECRET_ACCESS_KEY is required when STORAGE_DRIVER=s3")
+		}
+
+		endpoint := strings.TrimSpace(os.Getenv("S3_ENDPOINT"))
+		publicBase := strings.TrimSpace(os.Getenv("S3_PUBLIC_BASE_URL"))
+		forcePathStyle := false
+		if v := os.Getenv("S3_FORCE_PATH_STYLE"); v != "" {
+			parsed, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("invalid S3_FORCE_PATH_STYLE: %w", err)
+			}
+			forcePathStyle = parsed
+		}
+
+		cfg.Storage.S3 = S3Config{
+			Region:          region,
+			Bucket:          bucket,
+			Endpoint:        endpoint,
+			PublicBaseURL:   strings.TrimSuffix(publicBase, "/"),
+			AccessKeyID:     accessKey,
+			SecretAccessKey: secretKey,
+			ForcePathStyle:  forcePathStyle,
+		}
+	default:
+		return fmt.Errorf("unsupported STORAGE_DRIVER: %s", cfg.Storage.Driver)
+	}
+
+	return nil
 }
 
 func getEnv(key, fallback string) string {

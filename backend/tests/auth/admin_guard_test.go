@@ -1,7 +1,6 @@
 package auth_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,13 +70,7 @@ func TestAdminRoutesAllowAdmin(t *testing.T) {
 
 	srv.Engine().ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var resp struct {
-		Data map[string]string `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.Equal(t, "upload stub", resp.Data["message"])
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func newTestServer(t *testing.T) (*server.Server, *appauth.TokenService, func()) {
@@ -89,17 +82,33 @@ func newTestServer(t *testing.T) (*server.Server, *appauth.TokenService, func())
 	dbx := sqlx.NewDb(db, "sqlmock")
 
 	cfg := config.Config{
-		AppEnv:               "test",
-		PostgresURL:          "postgres://localhost:5432/test",
-		DBMaxOpenConns:       1,
-		DBMaxIdleConns:       1,
-		DBConnMaxLifetime:    time.Minute,
-		JWTSecret:            strings.Repeat("s", 64),
-		AccessTokenTTL:       15 * time.Minute,
-		RefreshTokenTTL:      7 * 24 * time.Hour,
-		RefreshCookieName:    "__Host_refresh",
-		LoginRateLimitPerMin: 5,
-		LoginRateLimitBurst:  10,
+		AppEnv:                "test",
+		PostgresURL:           "postgres://localhost:5432/test",
+		DBMaxOpenConns:        1,
+		DBMaxIdleConns:        1,
+		DBConnMaxLifetime:     time.Minute,
+		JWTSecret:             strings.Repeat("s", 64),
+		AccessTokenTTL:        15 * time.Minute,
+		RefreshTokenTTL:       7 * 24 * time.Hour,
+		RefreshCookieName:     "__Host_refresh",
+		LoginRateLimitPerMin:  5,
+		LoginRateLimitBurst:   10,
+		UploadRateLimitPerMin: 10,
+		UploadRateLimitBurst:  10,
+		Upload: config.UploadConfig{
+			MaxBytes:    5 * 1024 * 1024,
+			AllowedMIME: []string{"image/png", "image/jpeg", "image/webp", "image/svg+xml"},
+			AllowSVG:    false,
+		},
+		Storage: config.StorageConfig{
+			Driver: config.StorageDriverSupabase,
+			Supabase: config.SupabaseConfig{
+				URL:         "http://localhost",
+				Bucket:      "test",
+				ServiceRole: "test",
+				PublicURL:   "http://localhost/storage/v1/object/public/test",
+			},
+		},
 	}
 
 	srv, err := server.New(dbx, cfg)

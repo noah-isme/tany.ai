@@ -610,3 +610,58 @@ MIT License - Feel free to use this concept for your own project!
    ```
 
 Di lingkungan CI, workflow `ci-be.yml` akan menjalankan rangkaian yang sama (migrate → seed → test) menggunakan service Postgres.
+
+---
+
+## ☁️ Upload & Storage Configuration
+
+Fitur Admin Panel mendukung unggah avatar profil dan gambar proyek langsung ke object storage. Endpoint backend `/api/admin/uploads` menerima `multipart/form-data` berisi field `file` dan mengembalikan JSON:
+
+```json
+{
+  "url": "https://cdn.example.com/uploads/2025/01/12/uuid.png",
+  "key": "uploads/2025/01/12/uuid.png",
+  "contentType": "image/png",
+  "size": 12345
+}
+```
+
+### Konfigurasi Lingkungan
+
+Tambahkan variabel berikut pada `backend/.env`:
+
+```env
+STORAGE_DRIVER=supabase            # atau s3
+
+# Supabase Storage
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE=service_role_key
+SUPABASE_BUCKET=tanyai-public
+# SUPABASE_PUBLIC_URL opsional untuk custom CDN
+
+# S3-compatible (aktif bila STORAGE_DRIVER=s3)
+S3_REGION=ap-southeast-1
+S3_BUCKET=tanyai-public
+# S3_ENDPOINT dan S3_PUBLIC_BASE_URL opsional untuk MinIO/CDN
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret
+
+# Kebijakan unggah
+UPLOAD_MAX_MB=5
+ALLOW_SVG=false                    # true untuk mengizinkan SVG
+UPLOAD_ALLOWED_MIME=image/jpeg,image/png,image/webp,image/svg+xml
+UPLOAD_RATE_LIMIT_PER_MIN=10
+UPLOAD_RATE_LIMIT_BURST=10
+```
+
+### Validasi & Keamanan
+
+- MIME type diverifikasi melalui header dan sniff bytes awal.
+- Ukuran maksimum default 5 MB (dapat diubah lewat `UPLOAD_MAX_MB`).
+- SVG dinonaktifkan secara default. Saat `ALLOW_SVG=true`, backend akan mensanitasi konten (menghapus `<script>`, event handler `on*`, dan referensi eksternal).
+- Setiap IP dibatasi 10 unggahan per menit (konfigurasi rate limit tersedia lewat variabel env).
+- Log JSON menyertakan route, ukuran file, MIME, key storage, dan waktu proses.
+
+### Integrasi Frontend
+
+Admin Panel menyediakan uploader dengan pratinjau gambar, progres bar, dan toast status. Hasil unggahan otomatis mengisi field `avatar_url` (profil) dan `image_url` (proyek) sebelum disimpan lewat endpoint CRUD admin.

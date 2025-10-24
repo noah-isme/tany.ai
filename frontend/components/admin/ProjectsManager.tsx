@@ -25,6 +25,7 @@ import type { ActionResult } from "@/lib/action-result";
 import type { Project } from "@/lib/types/admin";
 import { projectSchema, type ProjectFormValues } from "@/lib/validators";
 
+import { ImageUploader } from "./ImageUploader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
@@ -432,11 +433,18 @@ function ProjectEditor({ mode, project, onSubmit, onCancel, isPending }: Project
               invalid={Boolean(errors.project_url)}
             />
           </Field>
-          <Field label="URL Gambar" error={errors.image_url?.message}>
-            <Input
-              placeholder="https://"
-              {...register("image_url")}
-              invalid={Boolean(errors.image_url)}
+          <Field label="Gambar Proyek" error={errors.image_url?.message}>
+            <Controller
+              name="image_url"
+              control={control}
+              render={({ field }) => (
+                <ImageUploader
+                  value={field.value ?? ""}
+                  onChange={(url) => field.onChange(url)}
+                  onBlur={field.onBlur}
+                  disabled={isPending}
+                />
+              )}
             />
           </Field>
           <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
