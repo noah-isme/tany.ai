@@ -1,7 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 test("admin skill management flow", async ({ page }) => {
-  await page.goto("/login");
+  const loginResponse = await page.goto("/login");
+  if (loginResponse?.status() === 404) {
+    await page.waitForTimeout(2000);
+    await page.reload();
+  }
+  await page.waitForSelector('input[name="email"]');
 
   await page.fill('input[name="email"]', "admin@example.com");
   await page.fill('input[name="password"]', "Password123!");
@@ -28,6 +33,21 @@ test("admin skill management flow", async ({ page }) => {
   page.on("dialog", (dialog) => dialog.accept());
   await newSkillRow.getByRole("button", { name: "Hapus" }).click();
   await expect(page.getByText("Testing Skill")).not.toBeVisible();
+
+  await page.goto("/admin/services");
+  const serviceRow = page.locator("tr", { hasText: "AI Discovery Workshop" }).first();
+  const toggle = serviceRow.getByRole("checkbox", { name: /toggle status layanan ai discovery workshop/i });
+  await expect(toggle).toBeChecked();
+  await toggle.click({ force: true });
+  await expect(toggle).not.toBeChecked();
+  await toggle.click({ force: true });
+  await expect(toggle).toBeChecked();
+
+  await page.goto("/admin/projects");
+  const projectRow = page.locator("tr", { hasText: "Sales Enablement Chatbot" }).first();
+  const featureButton = projectRow.getByRole("button", { name: "Jadikan featured" });
+  await featureButton.click();
+  await expect(projectRow.getByRole("button", { name: "Hapus featured" })).toBeVisible();
 
   await page.getByLabel("Keluar").click();
   await page.waitForURL("**/login");
