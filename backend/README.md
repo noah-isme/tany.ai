@@ -6,9 +6,15 @@ sebagai konteks bagi AI assistant.
 ## 🚀 Fitur
 - Endpoint `GET /healthz` untuk pemeriksaan kesehatan database.
 - Endpoint `GET /api/v1/knowledge-base` yang mengagregasi profil, skills, layanan aktif, dan proyek dari PostgreSQL lengkap dengan cache in-memory + header `ETag`.
-- Endpoint `POST /api/v1/chat` yang menyusun system prompt dari knowledge base internal, menghasilkan jawaban deterministic (atau model terhubung), serta menyimpan riwayat percakapan ke tabel `chat_history`.
+- Endpoint `POST /api/v1/chat` yang menyusun prompt grounded dari knowledge base internal, meneruskan ke provider AI (Gemini atau mock), serta menyimpan riwayat percakapan ke tabel `chat_history`.
 - Invalidasi cache otomatis ketika data admin (profil/skills/services/projects) berubah.
 - Rate limit dan logging terstruktur untuk endpoint publik (`/knowledge-base`, `/chat`).
+
+## 🤖 AI Provider
+
+- Set `AI_PROVIDER=gemini` untuk menggunakan Google Gemini melalui endpoint server-side. Jika variabel ini tidak di-set atau key kosong, backend otomatis menggunakan provider mock deterministik.
+- Simpan credential pada `GOOGLE_GENAI_API_KEY` dan pilih model via `GEMINI_MODEL` (default `gemini-1.5-pro`).
+- Prompt builder baru (`internal/services/prompt`) memastikan konteks ringkas (top layanan & proyek) agar cocok dengan karakteristik Gemini.
 
 ## 🧱 Struktur Direktori
 ```

@@ -4,12 +4,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tanydotai/tanyai/backend/internal/ai"
 	"github.com/tanydotai/tanyai/backend/internal/httpapi"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
@@ -28,6 +31,7 @@ type ChatHandler struct {
 	knowledge KnowledgeService
 	history   repos.ChatHistoryRepository
 	modelName string
+	provider  ai.Provider
 }
 
 // ChatRequest represents the incoming chat payload.
@@ -45,8 +49,8 @@ type ChatResponse struct {
 }
 
 // NewChatHandler constructs a ChatHandler with the provided dependencies.
-func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string) *ChatHandler {
-	return &ChatHandler{knowledge: knowledge, history: history, modelName: modelName}
+func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string, provider ai.Provider) *ChatHandler {
+	return &ChatHandler{knowledge: knowledge, history: history, modelName: modelName, provider: provider}
 }
 
 // HandleChat processes the chat question and stores the interaction history.
@@ -65,8 +69,8 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 	c.Set("kb_cache_hit", cacheHit)
 	c.Set("model", h.modelName)
 
-	promptText := prompt.BuildSystemPrompt(base)
-	answer := prompt.SummarizeForHuman(payload.Question, base)
+	promptText := prompt.BuildPrompt(base, payload.Question)
+	answer := ""
 	promptHash := sha256.Sum256([]byte(promptText))
 	promptLength := len([]rune(promptText))
 
@@ -81,6 +85,29 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 	}
 	c.Set("chat_id", chatID.String())
 	c.Set("prompt_length", promptLength)
+
+	var providerErr error
+	if h.provider != nil {
+		resp, err := h.provider.Generate(c.Request.Context(), ai.Request{
+			Prompt:      promptText,
+			MaxTokens:   512,
+			Temperature: 0.6,
+		})
+		if err != nil {
+			providerErr = err
+		} else {
+			answer = strings.TrimSpace(resp.Text)
+		}
+	}
+
+	if answer == "" {
+		answer = prompt.SummarizeForHuman(payload.Question, base)
+	}
+
+	if providerErr != nil {
+		answer = "Maaf, terjadi kendala saat memproses pesan. Silakan coba lagi."
+		slog.Warn("chat_generation_failed", "error", providerErr, "chat_id", chatID.String())
+	}
 
 	record := models.ChatHistory{
 		ChatID:       chatID,
