@@ -1,0 +1,10 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "John Doe",
+  "title": "Full Stack Developer & AI Consultant",
+  "bio": "Freelance developer yang berfokus pada pembuatan aplikasi web modern, integrasi AI, dan automasi bisnis.",
+  "email": "john@example.com",
+  "phone": "+62812345678",
+  "location": "Jakarta, Indonesia",
+  "avatar_url": "https://images.example.com/john-doe-avatar.png"
+}

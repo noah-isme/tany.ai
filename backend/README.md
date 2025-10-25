@@ -31,6 +31,11 @@ Unit test mencakup:
 - Handler chat menyimpan riwayat dan men-set header/metadata.
 - Repository `chat_history` untuk memastikan SQL dijalankan benar.
 
+## 🌱 Seeder & Test Notes
+- Seeder kini menggunakan `go:embed` untuk memaketkan data JSON dalam `internal/seed/data`. Tidak ada lagi ketergantungan pada working directory saat membaca file.
+- Override lokasi data dapat dilakukan dengan environment variable `SEED_DATA_PATH`. Set nilai ini ke direktori berisi berkas JSON jika ingin menggunakan seed eksternal (misal di CI/CD atau staging).
+- Test unit seeder berjalan deterministik menggunakan data embedded. Tidak diperlukan setup file tambahan ketika menjalankan `go test ./...`.
+
 ## ▶️ Menjalankan Server
 ```
 PORT=8080 go run ./cmd/api

@@ -2,7 +2,11 @@ package seed
 
 import (
 	"context"
+	"embed"
+	"encoding/json"
 	"fmt"
+	"io/fs"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,207 +15,183 @@ import (
 	"github.com/tanydotai/tanyai/backend/internal/auth"
 )
 
+//go:embed data/*.json
+var embeddedData embed.FS
+
+var defaultDataFS fs.FS
+
+func init() {
+	sub, err := fs.Sub(embeddedData, "data")
+	if err != nil {
+		panic(fmt.Errorf("seed: failed to initialize embedded data: %w", err))
+	}
+	defaultDataFS = sub
+}
+
 type profileSeed struct {
-	ID        string    `db:"id"`
-	Name      string    `db:"name"`
-	Title     string    `db:"title"`
-	Bio       string    `db:"bio"`
-	Email     string    `db:"email"`
-	Phone     string    `db:"phone"`
-	Location  string    `db:"location"`
-	AvatarURL string    `db:"avatar_url"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        string    `db:"id" json:"id"`
+	Name      string    `db:"name" json:"name"`
+	Title     string    `db:"title" json:"title"`
+	Bio       string    `db:"bio" json:"bio"`
+	Email     string    `db:"email" json:"email"`
+	Phone     string    `db:"phone" json:"phone"`
+	Location  string    `db:"location" json:"location"`
+	AvatarURL string    `db:"avatar_url" json:"avatar_url"`
+	UpdatedAt time.Time `db:"updated_at" json:"-"`
 }
 
 type skillSeed struct {
-	ID    string `db:"id"`
-	Name  string `db:"name"`
-	Order int    `db:"order"`
+	ID    string `db:"id" json:"id"`
+	Name  string `db:"name" json:"name"`
+	Order int    `db:"order" json:"order"`
 }
 
 type serviceSeed struct {
-	ID            string  `db:"id"`
-	Name          string  `db:"name"`
-	Description   string  `db:"description"`
-	PriceMin      float64 `db:"price_min"`
-	PriceMax      float64 `db:"price_max"`
-	Currency      string  `db:"currency"`
-	DurationLabel string  `db:"duration_label"`
-	IsActive      bool    `db:"is_active"`
-	Order         int     `db:"order"`
+	ID            string  `db:"id" json:"id"`
+	Name          string  `db:"name" json:"name"`
+	Description   string  `db:"description" json:"description"`
+	PriceMin      float64 `db:"price_min" json:"price_min"`
+	PriceMax      float64 `db:"price_max" json:"price_max"`
+	Currency      string  `db:"currency" json:"currency"`
+	DurationLabel string  `db:"duration_label" json:"duration_label"`
+	IsActive      bool    `db:"is_active" json:"is_active"`
+	Order         int     `db:"order" json:"order"`
 }
 
 type projectSeed struct {
-	ID          string `db:"id"`
-	Title       string `db:"title"`
-	Description string `db:"description"`
-	TechStack   string `db:"tech_stack"`
-	ImageURL    string `db:"image_url"`
-	ProjectURL  string `db:"project_url"`
-	Category    string `db:"category"`
-	Order       int    `db:"order"`
-	IsFeatured  bool   `db:"is_featured"`
+	ID          string `db:"id" json:"id"`
+	Title       string `db:"title" json:"title"`
+	Description string `db:"description" json:"description"`
+	TechStack   string `db:"tech_stack" json:"-"`
+	ImageURL    string `db:"image_url" json:"image_url"`
+	ProjectURL  string `db:"project_url" json:"project_url"`
+	Category    string `db:"category" json:"category"`
+	Order       int    `db:"order" json:"order"`
+	IsFeatured  bool   `db:"is_featured" json:"is_featured"`
 }
 
 type leadSeed struct {
-	ID        string    `db:"id"`
-	Name      string    `db:"name"`
-	Email     string    `db:"email"`
-	Message   string    `db:"message"`
-	Source    string    `db:"source"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        string    `db:"id" json:"id"`
+	Name      string    `db:"name" json:"name"`
+	Email     string    `db:"email" json:"email"`
+	Message   string    `db:"message" json:"message"`
+	Source    string    `db:"source" json:"source"`
+	CreatedAt time.Time `db:"created_at" json:"-"`
 }
 
-const (
-	adminUserID       = "66666666-1111-1111-1111-111111111111"
-	adminUserEmail    = "admin@example.com"
-	adminUserName     = "Admin"
-	adminUserPassword = "Admin#12345"
-	adminRole         = "admin"
-)
+type adminUserSeed struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+}
 
-var (
-	profileData = profileSeed{
-		ID:        "11111111-1111-1111-1111-111111111111",
-		Name:      "John Doe",
-		Title:     "Full Stack Developer & AI Consultant",
-		Bio:       "Freelance developer yang berfokus pada pembuatan aplikasi web modern, integrasi AI, dan automasi bisnis.",
-		Email:     "john@example.com",
-		Phone:     "+62812345678",
-		Location:  "Jakarta, Indonesia",
-		AvatarURL: "https://images.example.com/john-doe-avatar.png",
-		UpdatedAt: time.Now().UTC(),
+type projectSeedFile struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	TechStack   []string `json:"tech_stack"`
+	ImageURL    string   `json:"image_url"`
+	ProjectURL  string   `json:"project_url"`
+	Category    string   `json:"category"`
+	Order       int      `json:"order"`
+	IsFeatured  bool     `json:"is_featured"`
+}
+
+type seedPayload struct {
+	Profile  profileSeed
+	Skills   []skillSeed
+	Services []serviceSeed
+	Projects []projectSeed
+	Leads    []leadSeed
+	Admin    adminUserSeed
+}
+
+type Seeder struct {
+	db *sqlx.DB
+	fs fs.FS
+}
+
+func NewSeeder(db *sqlx.DB) *Seeder {
+	fsys := defaultDataFS
+	if override := os.Getenv("SEED_DATA_PATH"); override != "" {
+		fsys = os.DirFS(override)
 	}
+	return &Seeder{db: db, fs: fsys}
+}
 
-	skillData = []skillSeed{
-		{ID: "22222222-1111-1111-1111-111111111111", Name: "React.js", Order: 1},
-		{ID: "22222222-2222-1111-1111-111111111111", Name: "Golang", Order: 2},
-		{ID: "22222222-3333-1111-1111-111111111111", Name: "PostgreSQL", Order: 3},
-		{ID: "22222222-4444-1111-1111-111111111111", Name: "UI/UX Design", Order: 4},
-		{ID: "22222222-5555-1111-1111-111111111111", Name: "Prompt Engineering", Order: 5},
-		{ID: "22222222-6666-1111-1111-111111111111", Name: "Automation & No-Code", Order: 6},
+func (s *Seeder) Seed(ctx context.Context) error {
+	payload, err := loadSeedData(s.fs)
+	if err != nil {
+		return err
 	}
+	return seedAll(ctx, s.db, payload)
+}
 
-	serviceData = []serviceSeed{
-		{
-			ID:            "33333333-1111-1111-1111-111111111111",
-			Name:          "Website Development",
-			Description:   "Pembuatan website custom dengan stack modern dan optimasi performa.",
-			PriceMin:      5000000,
-			PriceMax:      20000000,
-			Currency:      "IDR",
-			DurationLabel: "3-6 minggu",
-			IsActive:      true,
-			Order:         1,
-		},
-		{
-			ID:            "33333333-2222-1111-1111-111111111111",
-			Name:          "Landing Page Sprint",
-			Description:   "Landing page responsif untuk kampanye marketing atau produk baru.",
-			PriceMin:      2500000,
-			PriceMax:      7500000,
-			Currency:      "IDR",
-			DurationLabel: "1-2 minggu",
-			IsActive:      true,
-			Order:         2,
-		},
-		{
-			ID:            "33333333-3333-1111-1111-111111111111",
-			Name:          "AI Chatbot Integration",
-			Description:   "Integrasi chatbot AI berbasis GPT yang dikustomisasi dengan knowledge base bisnis Anda.",
-			PriceMin:      6000000,
-			PriceMax:      18000000,
-			Currency:      "IDR",
-			DurationLabel: "2-3 minggu",
-			IsActive:      true,
-			Order:         3,
-		},
-		{
-			ID:            "33333333-4444-1111-1111-111111111111",
-			Name:          "Brand & UI Refresh",
-			Description:   "Re-desain identitas visual dan UI dashboard agar lebih modern dan konsisten.",
-			PriceMin:      3500000,
-			PriceMax:      12000000,
-			Currency:      "IDR",
-			DurationLabel: "2-4 minggu",
-			IsActive:      true,
-			Order:         4,
-		},
-		{
-			ID:            "33333333-5555-1111-1111-111111111111",
-			Name:          "Product Maintenance Retainer",
-			Description:   "Paket maintenance bulanan untuk feature updates, bug fix, dan monitoring performa.",
-			PriceMin:      1500000,
-			PriceMax:      5000000,
-			Currency:      "IDR",
-			DurationLabel: "Bulanan",
-			IsActive:      true,
-			Order:         5,
-		},
-	}
-
-	projectData = []projectSeed{
-		{
-			ID:          "44444444-1111-1111-1111-111111111111",
-			Title:       "E-commerce Fashion Platform",
-			Description: "Platform toko online dengan katalog dinamis, pembayaran terintegrasi, dan dashboard analitik.",
-			TechStack:   formatTextArray([]string{"Next.js", "Golang", "Supabase", "Midtrans"}),
-			ImageURL:    "https://images.example.com/projects/fashion-store.png",
-			ProjectURL:  "https://fashion-store.example.com",
-			Category:    "E-commerce",
-			Order:       1,
-			IsFeatured:  true,
-		},
-		{
-			ID:          "44444444-2222-1111-1111-111111111111",
-			Title:       "SaaS Analytics Dashboard",
-			Description: "Dashboard real-time untuk monitoring KPI bisnis dengan integrasi data warehouse.",
-			TechStack:   formatTextArray([]string{"React", "Gin", "PostgreSQL", "Grafana"}),
-			ImageURL:    "https://images.example.com/projects/saas-analytics.png",
-			ProjectURL:  "https://analytics.example.com",
-			Category:    "SaaS",
-			Order:       2,
-			IsFeatured:  true,
-		},
-		{
-			ID:          "44444444-3333-1111-1111-111111111111",
-			Title:       "AI Customer Support Bot",
-			Description: "Chatbot AI untuk support pelanggan dengan prompt builder dan retrieval knowledge base.",
-			TechStack:   formatTextArray([]string{"Next.js", "Golang", "OpenAI", "Supabase"}),
-			ImageURL:    "https://images.example.com/projects/ai-support.png",
-			ProjectURL:  "https://ai-support.example.com",
-			Category:    "AI & Automation",
-			Order:       3,
-			IsFeatured:  true,
-		},
-		{
-			ID:          "44444444-4444-1111-1111-111111111111",
-			Title:       "Company Profile Revamp",
-			Description: "Redesign website company profile dengan storytelling dan ilustrasi custom.",
-			TechStack:   formatTextArray([]string{"Astro", "Tailwind", "Framer Motion"}),
-			ImageURL:    "https://images.example.com/projects/company-profile.png",
-			ProjectURL:  "https://company-profile.example.com",
-			Category:    "Creative",
-			Order:       4,
-			IsFeatured:  false,
-		},
-	}
-
-	leadData = []leadSeed{
-		{
-			ID:        "55555555-1111-1111-1111-111111111111",
-			Name:      "Jane Startup",
-			Email:     "jane@startup.io",
-			Message:   "Hi John, kami butuh bantuan membuat MVP SaaS analytics. Bisa kirim proposal?",
-			Source:    "landing_page_form",
-			CreatedAt: time.Now().UTC(),
-		},
-	}
-)
-
-// Seed performs idempotent upsert operations to populate the core tables with
-// representative knowledge base data.
 func Seed(ctx context.Context, db *sqlx.DB) error {
+	return NewSeeder(db).Seed(ctx)
+}
+
+func loadSeedData(fsys fs.FS) (seedPayload, error) {
+	var payload seedPayload
+
+	var profileFile profileSeed
+	if err := readJSONFile(fsys, "profile.json", &profileFile); err != nil {
+		return payload, fmt.Errorf("read profile seed: %w", err)
+	}
+	payload.Profile = profileFile
+
+	if err := readJSONFile(fsys, "skills.json", &payload.Skills); err != nil {
+		return payload, fmt.Errorf("read skills seed: %w", err)
+	}
+
+	if err := readJSONFile(fsys, "services.json", &payload.Services); err != nil {
+		return payload, fmt.Errorf("read services seed: %w", err)
+	}
+
+	var projectFiles []projectSeedFile
+	if err := readJSONFile(fsys, "projects.json", &projectFiles); err != nil {
+		return payload, fmt.Errorf("read projects seed: %w", err)
+	}
+	payload.Projects = make([]projectSeed, len(projectFiles))
+	for i, p := range projectFiles {
+		payload.Projects[i] = projectSeed{
+			ID:          p.ID,
+			Title:       p.Title,
+			Description: p.Description,
+			TechStack:   formatTextArray(p.TechStack),
+			ImageURL:    p.ImageURL,
+			ProjectURL:  p.ProjectURL,
+			Category:    p.Category,
+			Order:       p.Order,
+			IsFeatured:  p.IsFeatured,
+		}
+	}
+
+	if err := readJSONFile(fsys, "leads.json", &payload.Leads); err != nil {
+		return payload, fmt.Errorf("read leads seed: %w", err)
+	}
+
+	if err := readJSONFile(fsys, "admin_user.json", &payload.Admin); err != nil {
+		return payload, fmt.Errorf("read admin user seed: %w", err)
+	}
+
+	return payload, nil
+}
+
+func readJSONFile(fsys fs.FS, name string, dest interface{}) error {
+	b, err := fs.ReadFile(fsys, name)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(b, dest); err != nil {
+		return fmt.Errorf("unmarshal %s: %w", name, err)
+	}
+	return nil
+}
+
+func seedAll(ctx context.Context, db *sqlx.DB, payload seedPayload) error {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -220,22 +200,22 @@ func Seed(ctx context.Context, db *sqlx.DB) error {
 		_ = tx.Rollback()
 	}()
 
-	if err := seedProfile(ctx, tx, profileData); err != nil {
+	if err := seedProfile(ctx, tx, payload.Profile); err != nil {
 		return err
 	}
-	if err := seedSkills(ctx, tx, skillData); err != nil {
+	if err := seedSkills(ctx, tx, payload.Skills); err != nil {
 		return err
 	}
-	if err := seedServices(ctx, tx, serviceData); err != nil {
+	if err := seedServices(ctx, tx, payload.Services); err != nil {
 		return err
 	}
-	if err := seedProjects(ctx, tx, projectData); err != nil {
+	if err := seedProjects(ctx, tx, payload.Projects); err != nil {
 		return err
 	}
-	if err := seedLeads(ctx, tx, leadData); err != nil {
+	if err := seedLeads(ctx, tx, payload.Leads); err != nil {
 		return err
 	}
-	if err := seedAdminUser(ctx, tx); err != nil {
+	if err := seedAdminUser(ctx, tx, payload.Admin); err != nil {
 		return err
 	}
 
@@ -336,6 +316,7 @@ ON CONFLICT (id) DO UPDATE SET
         created_at = EXCLUDED.created_at;
 `
 	for _, item := range data {
+		item.CreatedAt = time.Now().UTC()
 		if _, err := tx.NamedExecContext(ctx, query, item); err != nil {
 			return err
 		}
@@ -343,17 +324,17 @@ ON CONFLICT (id) DO UPDATE SET
 	return nil
 }
 
-func seedAdminUser(ctx context.Context, tx *sqlx.Tx) error {
-	hashed, err := auth.HashPassword(adminUserPassword)
+func seedAdminUser(ctx context.Context, tx *sqlx.Tx, admin adminUserSeed) error {
+	hashed, err := auth.HashPassword(admin.Password)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
 
 	params := map[string]interface{}{
-		"id":            adminUserID,
-		"email":         adminUserEmail,
+		"id":            admin.ID,
+		"email":         admin.Email,
 		"password_hash": hashed,
-		"name":          adminUserName,
+		"name":          admin.Name,
 	}
 
 	query := `
@@ -370,7 +351,7 @@ ON CONFLICT (id) DO UPDATE SET
 		return err
 	}
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`, adminUserID, adminRole)
+	_, err = tx.ExecContext(ctx, `INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`, admin.ID, admin.Role)
 	return err
 }
 

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "33333333-1111-1111-1111-111111111111",
+    "name": "Website Development",
+    "description": "Pembuatan website custom dengan stack modern dan optimasi performa.",
+    "price_min": 5000000,
+    "price_max": 20000000,
+    "currency": "IDR",
+    "duration_label": "3-6 minggu",
+    "is_active": true,
+    "order": 1
+  },
+  {
+    "id": "33333333-2222-1111-1111-111111111111",
+    "name": "Landing Page Sprint",
+    "description": "Landing page responsif untuk kampanye marketing atau produk baru.",
+    "price_min": 2500000,
+    "price_max": 7500000,
+    "currency": "IDR",
+    "duration_label": "1-2 minggu",
+    "is_active": true,
+    "order": 2
+  },
+  {
+    "id": "33333333-3333-1111-1111-111111111111",
+    "name": "AI Chatbot Integration",
+    "description": "Integrasi chatbot AI berbasis GPT yang dikustomisasi dengan knowledge base bisnis Anda.",
+    "price_min": 6000000,
+    "price_max": 18000000,
+    "currency": "IDR",
+    "duration_label": "2-3 minggu",
+    "is_active": true,
+    "order": 3
+  },
+  {
+    "id": "33333333-4444-1111-1111-111111111111",
+    "name": "Brand & UI Refresh",
+    "description": "Re-desain identitas visual dan UI dashboard agar lebih modern dan konsisten.",
+    "price_min": 3500000,
+    "price_max": 12000000,
+    "currency": "IDR",
+    "duration_label": "2-4 minggu",
+    "is_active": true,
+    "order": 4
+  },
+  {
+    "id": "33333333-5555-1111-1111-111111111111",
+    "name": "Product Maintenance Retainer",
+    "description": "Paket maintenance bulanan untuk feature updates, bug fix, dan monitoring performa.",
+    "price_min": 1500000,
+    "price_max": 5000000,
+    "currency": "IDR",
+    "duration_label": "Bulanan",
+    "is_active": true,
+    "order": 5
+  }
+]

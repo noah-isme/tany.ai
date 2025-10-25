@@ -1,0 +1,9 @@
+[
+  {
+    "id": "55555555-1111-1111-1111-111111111111",
+    "name": "Jane Startup",
+    "email": "jane@startup.io",
+    "message": "Hi John, kami butuh bantuan membuat MVP SaaS analytics. Bisa kirim proposal?",
+    "source": "landing_page_form"
+  }
+]

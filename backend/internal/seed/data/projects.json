@@ -1,0 +1,46 @@
+[
+  {
+    "id": "44444444-1111-1111-1111-111111111111",
+    "title": "E-commerce Fashion Platform",
+    "description": "Platform toko online dengan katalog dinamis, pembayaran terintegrasi, dan dashboard analitik.",
+    "tech_stack": ["Next.js", "Golang", "Supabase", "Midtrans"],
+    "image_url": "https://images.example.com/projects/fashion-store.png",
+    "project_url": "https://fashion-store.example.com",
+    "category": "E-commerce",
+    "order": 1,
+    "is_featured": true
+  },
+  {
+    "id": "44444444-2222-1111-1111-111111111111",
+    "title": "SaaS Analytics Dashboard",
+    "description": "Dashboard real-time untuk monitoring KPI bisnis dengan integrasi data warehouse.",
+    "tech_stack": ["React", "Gin", "PostgreSQL", "Grafana"],
+    "image_url": "https://images.example.com/projects/saas-analytics.png",
+    "project_url": "https://analytics.example.com",
+    "category": "SaaS",
+    "order": 2,
+    "is_featured": true
+  },
+  {
+    "id": "44444444-3333-1111-1111-111111111111",
+    "title": "AI Customer Support Bot",
+    "description": "Chatbot AI untuk support pelanggan dengan prompt builder dan retrieval knowledge base.",
+    "tech_stack": ["Next.js", "Golang", "OpenAI", "Supabase"],
+    "image_url": "https://images.example.com/projects/ai-support.png",
+    "project_url": "https://ai-support.example.com",
+    "category": "AI & Automation",
+    "order": 3,
+    "is_featured": true
+  },
+  {
+    "id": "44444444-4444-1111-1111-111111111111",
+    "title": "Company Profile Revamp",
+    "description": "Redesign website company profile dengan storytelling dan ilustrasi custom.",
+    "tech_stack": ["Astro", "Tailwind", "Framer Motion"],
+    "image_url": "https://images.example.com/projects/company-profile.png",
+    "project_url": "https://company-profile.example.com",
+    "category": "Creative",
+    "order": 4,
+    "is_featured": false
+  }
+]
