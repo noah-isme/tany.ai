@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS profile (
@@ -15,6 +14,3 @@ CREATE TABLE IF NOT EXISTS profile (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_email ON profile (email);
 
--- +migrate Down
-DROP INDEX IF EXISTS idx_profile_email;
-DROP TABLE IF EXISTS profile;

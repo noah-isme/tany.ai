@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE IF NOT EXISTS services (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -13,6 +12,3 @@ CREATE TABLE IF NOT EXISTS services (
 
 CREATE INDEX IF NOT EXISTS idx_services_active_order ON services (is_active, "order");
 
--- +migrate Down
-DROP INDEX IF EXISTS idx_services_active_order;
-DROP TABLE IF EXISTS services;

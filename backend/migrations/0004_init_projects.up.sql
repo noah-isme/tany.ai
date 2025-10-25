@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -13,6 +12,3 @@ CREATE TABLE IF NOT EXISTS projects (
 
 CREATE INDEX IF NOT EXISTS idx_projects_featured_order ON projects (is_featured DESC, "order");
 
--- +migrate Down
-DROP INDEX IF EXISTS idx_projects_featured_order;
-DROP TABLE IF EXISTS projects;

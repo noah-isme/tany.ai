@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE IF NOT EXISTS chat_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     chat_id UUID NOT NULL,
@@ -14,6 +13,3 @@ CREATE TABLE IF NOT EXISTS chat_history (
 
 CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id_created_at ON chat_history (chat_id, created_at DESC);
 
--- +migrate Down
-DROP INDEX IF EXISTS idx_chat_history_chat_id_created_at;
-DROP TABLE IF EXISTS chat_history;

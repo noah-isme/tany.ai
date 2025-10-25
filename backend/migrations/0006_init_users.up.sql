@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL UNIQUE,
@@ -10,6 +9,3 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
 
--- +migrate Down
-DROP INDEX IF EXISTS idx_users_email_lower;
-DROP TABLE IF EXISTS users;

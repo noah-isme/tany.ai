@@ -5,11 +5,11 @@ SHELL := /bin/bash
 dev:
 	@echo "Starting tany.ai API and web app..."
 	@bash -c 'trap "kill 0" EXIT; \
-		(cd backend && go run ./cmd/api) & \
+		(cd backend && set -a && [ -f .env ] && . .env && set +a && go run ./cmd/api) & \
 		(cd frontend && npm run dev)'
 
 api:
-	@cd backend && go run ./cmd/api
+	@cd backend && set -a && [ -f .env ] && . .env && set +a && go run ./cmd/api
 
 web:
 	@cd frontend && npm run dev
