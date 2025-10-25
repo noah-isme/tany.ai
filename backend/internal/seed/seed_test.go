@@ -1,52 +1,122 @@
-package seed_test
+package seed
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
-	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
-	"github.com/tanydotai/tanyai/backend/internal/db"
-	"github.com/tanydotai/tanyai/backend/internal/seed"
 )
 
-func TestSeedInsertsSampleData(t *testing.T) {
-	dsn := os.Getenv("POSTGRES_URL")
-	if dsn == "" {
-		t.Skip("POSTGRES_URL not set; skipping seeder test")
-	}
+func TestSeederUsesEmbeddedData(t *testing.T) {
+	t.Setenv("SEED_DATA_PATH", "")
+	payload := mustLoadPayload(t, defaultDataFS)
 
-	migrationsDir := filepath.Join("..", "..", "migrations")
-	require.NoError(t, db.RunMigrations(migrationsDir, dsn))
+	dbx, mock := setupSeederMock(t, payload)
+	seeder := NewSeeder(dbx)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	conn, err := db.Open(ctx, dsn, 3, 3, time.Minute)
+	err := seeder.Seed(context.Background())
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = conn.Close()
-	})
-
-	require.NoError(t, seed.Seed(ctx, conn))
-
-	assertCountGreaterThanZero(t, conn, "profile")
-	assertCountGreaterThanZero(t, conn, "skills")
-	assertCountGreaterThanZero(t, conn, "services")
-	assertCountGreaterThanZero(t, conn, "projects")
-
-	var featuredCount int
-	require.NoError(t, conn.Get(&featuredCount, "SELECT COUNT(*) FROM projects WHERE is_featured = true"))
-	require.Greater(t, featuredCount, 0)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func assertCountGreaterThanZero(t *testing.T, dbConn *sqlx.DB, table string) {
+func TestSeederHonorsSeedDataPathOverride(t *testing.T) {
+	tmp := t.TempDir()
+	copySeedFiles(t, tmp)
+	t.Setenv("SEED_DATA_PATH", tmp)
+
+	payload := mustLoadPayload(t, os.DirFS(tmp))
+
+	dbx, mock := setupSeederMock(t, payload)
+	seeder := NewSeeder(dbx)
+
+	err := seeder.Seed(context.Background())
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func setupSeederMock(t *testing.T, payload seedPayload) (*sqlx.DB, sqlmock.Sqlmock) {
 	t.Helper()
-	var count int
-	query := "SELECT COUNT(*) FROM " + table
-	require.NoError(t, dbConn.Get(&count, query))
-	require.Greater(t, count, 0)
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	mock.ExpectBegin()
+	mock.ExpectExec("INSERT INTO profile").
+		WithArgs(payload.Profile.ID, payload.Profile.Name, payload.Profile.Title, payload.Profile.Bio, payload.Profile.Email, payload.Profile.Phone, payload.Profile.Location, payload.Profile.AvatarURL, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	for _, item := range payload.Skills {
+		mock.ExpectExec("INSERT INTO skills").
+			WithArgs(item.ID, item.Name, item.Order).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+
+	for _, item := range payload.Services {
+		mock.ExpectExec("INSERT INTO services").
+			WithArgs(item.ID, item.Name, item.Description, item.PriceMin, item.PriceMax, item.Currency, item.DurationLabel, item.IsActive, item.Order).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+
+	for _, item := range payload.Projects {
+		mock.ExpectExec("INSERT INTO projects").
+			WithArgs(item.ID, item.Title, item.Description, item.TechStack, item.ImageURL, item.ProjectURL, item.Category, item.Order, item.IsFeatured).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+
+	for range payload.Leads {
+		mock.ExpectExec("INSERT INTO leads").
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+
+	mock.ExpectExec("INSERT INTO users").
+		WithArgs(payload.Admin.ID, payload.Admin.Email, sqlmock.AnyArg(), payload.Admin.Name).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectExec("INSERT INTO user_roles").
+		WithArgs(payload.Admin.ID, payload.Admin.Role).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectCommit()
+
+	return sqlx.NewDb(db, "sqlmock"), mock
+}
+
+func mustLoadPayload(t *testing.T, fsys fs.FS) seedPayload {
+	t.Helper()
+	payload, err := loadSeedData(fsys)
+	require.NoError(t, err)
+	return payload
+}
+
+func copySeedFiles(t *testing.T, dst string) {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok, "unable to determine caller")
+	srcDir := filepath.Join(filepath.Dir(file), "data")
+
+	entries := []string{
+		"profile.json",
+		"skills.json",
+		"services.json",
+		"projects.json",
+		"leads.json",
+		"admin_user.json",
+	}
+
+	for _, name := range entries {
+		content, err := os.ReadFile(filepath.Join(srcDir, name))
+		require.NoErrorf(t, err, "read %s", name)
+		err = os.WriteFile(filepath.Join(dst, name), content, 0o644)
+		require.NoErrorf(t, err, "write %s", name)
+	}
 }
