@@ -6,5 +6,5 @@
   "email": "john@example.com",
   "phone": "+62812345678",
   "location": "Jakarta, Indonesia",
-  "avatar_url": "https://images.example.com/john-doe-avatar.png"
+  "avatar_url": "https://gyyiuhgcbggxzozasfji.supabase.co/storage/v1/object/public/public-assets/avatar.png"
 }
