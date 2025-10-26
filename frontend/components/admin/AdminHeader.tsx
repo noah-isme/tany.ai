@@ -31,7 +31,7 @@ export function AdminHeader({ email }: AdminHeaderProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
-    <header className="relative flex items-center justify-between border-b border-slate-200 bg-white/70 px-4 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+    <header className="relative flex items-center justify-between border-b border-border bg-card/95 px-4 py-4 shadow-sm transition-colors duration-300 supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur">
       <div className="flex items-center gap-3">
         <Button
           type="button"
@@ -44,10 +44,10 @@ export function AdminHeader({ email }: AdminHeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg font-semibold text-foreground">
             {activeItem?.label ?? "Dashboard"}
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             {descriptions[activeItem?.label ?? "Dashboard"]}
           </p>
         </div>
@@ -55,18 +55,18 @@ export function AdminHeader({ email }: AdminHeaderProps) {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 sm:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 text-xs text-muted-foreground shadow-sm supports-[backdrop-filter]:bg-card/60 supports-[backdrop-filter]:backdrop-blur sm:flex">
           <span className="font-medium">{email}</span>
         </div>
         <LogoutButton />
       </div>
 
       {showMobileMenu ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur">
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-950 p-6 text-slate-100 shadow-xl">
+        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur">
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-border bg-card p-6 text-card-foreground shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-indigo-300">tany.ai</p>
+                <p className="text-xs uppercase tracking-[0.35em] text-primary/70">tany.ai</p>
                 <p className="font-semibold">Admin Panel</p>
               </div>
               <Button
@@ -79,7 +79,7 @@ export function AdminHeader({ email }: AdminHeaderProps) {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <p className="mt-4 text-xs text-slate-400">{email}</p>
+            <p className="mt-4 text-xs text-muted-foreground">{email}</p>
             <nav className="mt-6">
               <ul className="space-y-2">
                 {ADMIN_NAV_ITEMS.map((item) => {
@@ -91,8 +91,10 @@ export function AdminHeader({ email }: AdminHeaderProps) {
                         href={item.href}
                         onClick={() => setShowMobileMenu(false)}
                         className={clsx(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-                          active ? "bg-indigo-500 text-white" : "hover:bg-slate-900/60",
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
                         )}
                       >
                         <Icon className="h-4 w-4" />

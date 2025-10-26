@@ -27,7 +27,7 @@ export function LogoutButton() {
       onClick={handleLogout}
       disabled={isPending}
       aria-label="Keluar"
-      className="text-slate-500 hover:text-rose-500"
+      className="text-muted-foreground hover:text-destructive"
     >
       <LogOut className="h-4 w-4" />
       <span className="sr-only">Keluar</span>

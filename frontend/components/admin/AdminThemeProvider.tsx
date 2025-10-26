@@ -1,60 +1,44 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 type ThemeContextValue = {
   theme: ThemeMode;
+  resolvedTheme: "light" | "dark";
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
 };
 
-const STORAGE_KEY = "tany-admin-theme";
-
 const AdminThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-function applyTheme(theme: ThemeMode) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-  root.dataset.theme = theme;
-}
-
-function persist(theme: ThemeMode) {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, theme);
-    document.cookie = `ta_theme=${theme}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-  }
-}
 
 type ProviderProps = {
   children: React.ReactNode;
-  defaultTheme?: ThemeMode | null;
 };
 
-export function AdminThemeProvider({ children, defaultTheme = "dark" }: ProviderProps) {
-  const [theme, setThemeState] = useState<ThemeMode>(defaultTheme ?? "dark");
+export function AdminThemeProvider({ children }: ProviderProps) {
+  const { theme = "system", resolvedTheme = "light", setTheme } = useTheme();
+
+  const value = useMemo<ThemeContextValue>(() => {
+    const activeTheme = (resolvedTheme ?? "light") as "light" | "dark";
+    const currentTheme = (theme ?? "system") as ThemeMode;
+    return {
+      theme: currentTheme,
+      resolvedTheme: activeTheme,
+      setTheme: (next) => setTheme(next),
+      toggleTheme: () => setTheme(activeTheme === "dark" ? "light" : "dark"),
+    };
+  }, [resolvedTheme, setTheme, theme]);
 
   useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    applyTheme(theme);
-    persist(theme);
-  }, [theme]);
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      setTheme: (next) => setThemeState(next),
-      toggleTheme: () => setThemeState((prev) => (prev === "dark" ? "light" : "dark")),
-    }),
-    [theme],
-  );
+    const selected = value.theme;
+    const cookieValue = selected;
+    const maxAge = 60 * 60 * 24 * 365;
+    const secure = typeof window !== "undefined" && window.location.protocol === "https:";
+    document.cookie = `ta_theme=${cookieValue}; path=/; max-age=${maxAge}; samesite=lax${secure ? "; secure" : ""}`;
+  }, [value.theme]);
 
   return <AdminThemeContext.Provider value={value}>{children}</AdminThemeContext.Provider>;
 }

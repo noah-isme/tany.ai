@@ -160,8 +160,8 @@ export function SkillsManager({ initialSkills, createSkill, updateSkill, deleteS
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Tambah Skill</h2>
+      <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-sm transition-colors supports-[backdrop-filter]:bg-card/80 supports-[backdrop-filter]:backdrop-blur">
+        <h2 className="text-sm font-semibold text-foreground">Tambah Skill</h2>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             value={newSkill}
@@ -188,15 +188,15 @@ export function SkillsManager({ initialSkills, createSkill, updateSkill, deleteS
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm transition-colors supports-[backdrop-filter]:bg-card/80 supports-[backdrop-filter]:backdrop-blur">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead className="bg-slate-100/80 dark:bg-slate-900/50">
+          <table className="min-w-full divide-y divide-border/60 text-sm">
+            <thead className="bg-muted/80">
               <tr>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">
                   Skill
                 </th>
-                <th scope="col" className="w-32 px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                <th scope="col" className="w-32 px-4 py-3 text-right font-semibold text-muted-foreground">
                   Aksi
                 </th>
               </tr>
@@ -270,15 +270,15 @@ function SkillRow({ skill, onUpdate, onDelete, onMove, canMoveUp, canMoveDown, d
       ref={setNodeRef}
       style={style}
       className={clsx(
-        "border-b border-slate-200/80 last:border-b-0 dark:border-slate-800/60",
-        isDragging ? "bg-indigo-500/10" : "bg-white/0",
+        "border-b border-border/60 last:border-b-0",
+        isDragging ? "bg-primary/10" : "bg-transparent",
       )}
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="rounded-md border border-transparent p-1 text-slate-400 hover:text-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            className="rounded-md border border-transparent p-1 text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             {...listeners}
             {...attributes}
             aria-label="Ubah urutan"
@@ -292,7 +292,7 @@ function SkillRow({ skill, onUpdate, onDelete, onMove, canMoveUp, canMoveDown, d
               disabled={isPending}
             />
           ) : (
-            <span className="font-medium text-slate-800 dark:text-slate-100">{skill.name}</span>
+            <span className="font-medium text-foreground">{skill.name}</span>
           )}
         </div>
       </td>
@@ -355,7 +355,7 @@ function SkillRow({ skill, onUpdate, onDelete, onMove, canMoveUp, canMoveDown, d
                 size="sm"
                 onClick={() => onDelete(skill.id)}
                 disabled={disabled}
-                className="text-rose-400 hover:text-rose-500"
+                className="text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
                 <span className="sr-only">Hapus</span>

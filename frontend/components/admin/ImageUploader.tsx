@@ -215,16 +215,16 @@ export function ImageUploader({
         onChange={onFileSelect}
         data-testid="image-uploader-input"
       />
-      <p className="text-xs text-slate-500 dark:text-slate-400">Tipe diperbolehkan: {acceptLabel}.</p>
+      <p className="text-xs text-muted-foreground">Tipe diperbolehkan: {acceptLabel}.</p>
       {state.isUploading ? (
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Mengunggah…</span>
             {typeof state.progress === "number" ? <span>{state.progress}%</span> : null}
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-indigo-500 transition-all"
+              className="h-full rounded-full bg-primary transition-all"
               style={{ width: `${state.progress ?? 100}%` }}
             />
           </div>
@@ -244,7 +244,7 @@ export function ImageUploader({
           ) : null}
         </div>
       ) : null}
-      <div className="flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+      <div className="flex items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/50 p-2 text-xs text-muted-foreground supports-[backdrop-filter]:bg-muted/40">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

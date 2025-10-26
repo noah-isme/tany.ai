@@ -26,10 +26,10 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
       />
       <span
         aria-hidden="true"
-        className="pointer-events-none relative inline-flex h-5 w-9 items-center rounded-full border border-slate-300 bg-slate-300 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-500 dark:border-slate-700 dark:bg-slate-700"
+        className="pointer-events-none relative inline-flex h-5 w-9 items-center rounded-full border border-border bg-muted transition-colors duration-200 peer-checked:border-primary peer-checked:bg-primary"
       >
         <span
-          className="pointer-events-none ml-1 inline-block h-3 w-3 rounded-full bg-white shadow-sm transition peer-checked:translate-x-4"
+          className="pointer-events-none ml-1 inline-block h-3 w-3 rounded-full bg-card shadow-sm transition peer-checked:translate-x-4 peer-checked:bg-primary-foreground"
         />
       </span>
     </label>

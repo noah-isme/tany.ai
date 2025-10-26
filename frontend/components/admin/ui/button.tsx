@@ -13,14 +13,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref,
 ) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60";
 
   const variantClass = {
-    primary: "bg-indigo-500 text-white hover:bg-indigo-400",
-    secondary: "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
-    ghost:
-      "bg-transparent text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800 border border-transparent",
-    danger: "bg-rose-500 text-white hover:bg-rose-400",
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ghost: "border border-transparent bg-transparent text-foreground hover:bg-muted",
+    danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
   }[variant];
 
   const sizeClass = {
