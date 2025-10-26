@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { GlobalErrorBoundary } from "@/components/global-error-boundary";
+import { ThemeProvider } from "@/components/theme-provider";
+import { getStoredTheme } from "@/lib/auth";
 import { headers } from "next/headers";
 import "./globals.css";
 
@@ -28,16 +30,19 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const nonce = headersList.get("x-nonce") || "";
-  
+  const storedTheme = await getStoredTheme();
+
   return (
     <html lang="id">
       <head>
         {nonce && <meta name="x-nonce" content={nonce} />}
       </head>
       <body
-        className={`${display.variable} ${body.variable} bg-[var(--bg)] font-sans antialiased text-[var(--text)]`}
+        className={`${display.variable} ${body.variable} min-h-screen bg-background font-sans text-foreground antialiased transition-colors duration-300`}
       >
-        <GlobalErrorBoundary>{children}</GlobalErrorBoundary>
+        <ThemeProvider defaultTheme={storedTheme ?? "system"}>
+          <GlobalErrorBoundary>{children}</GlobalErrorBoundary>
+        </ThemeProvider>
       </body>
     </html>
   );

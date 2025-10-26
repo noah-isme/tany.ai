@@ -148,23 +148,23 @@ export function ProfileForm({ profile, onSubmit }: ProfileFormProps) {
       </div>
 
       <aside className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
-          <p className="font-semibold text-slate-900 dark:text-slate-100">Pratinjau Avatar</p>
+        <div className="rounded-2xl border border-border bg-card/90 p-4 text-sm text-muted-foreground shadow-sm transition-colors supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur">
+          <p className="font-semibold text-foreground">Pratinjau Avatar</p>
           <div className="mt-3 flex items-center justify-center">
             {avatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarPreview}
                 alt="Avatar preview"
-                className="h-32 w-32 rounded-full border border-slate-200 object-cover shadow-sm dark:border-slate-700"
+                className="h-32 w-32 rounded-full border border-border object-cover shadow-sm"
               />
             ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded-full border border-dashed border-slate-300 text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
+              <div className="flex h-32 w-32 items-center justify-center rounded-full border border-dashed border-border text-xs text-muted-foreground">
                 Tidak ada gambar
               </div>
             )}
           </div>
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-xs text-muted-foreground">
             Unggahan akan tersimpan otomatis ke storage dan menghasilkan URL publik.
           </p>
         </div>
@@ -181,11 +181,11 @@ type FieldProps = {
 
 function Field({ label, error, children }: FieldProps) {
   return (
-    <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+    <label className="space-y-2 text-sm font-medium text-foreground">
       <span>{label}</span>
       <div>{children}</div>
       {error ? (
-        <span className="block text-xs font-normal text-rose-300" role="alert">
+        <span className="block text-xs font-normal text-destructive" role="alert">
           {error}
         </span>
       ) : null}

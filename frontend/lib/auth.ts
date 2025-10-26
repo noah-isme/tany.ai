@@ -112,16 +112,16 @@ export async function requireAdminOrRedirect(): Promise<CurrentUser> {
   return user;
 }
 
-export async function getStoredTheme(): Promise<"light" | "dark" | null> {
+export async function getStoredTheme(): Promise<"light" | "dark" | "system" | null> {
   const cookieStore = await cookies();
   const theme = cookieStore.get(THEME_COOKIE)?.value;
-  if (theme === "light" || theme === "dark") {
+  if (theme === "light" || theme === "dark" || theme === "system") {
     return theme;
   }
   return null;
 }
 
-export async function persistThemePreference(theme: "light" | "dark"): Promise<void> {
+export async function persistThemePreference(theme: "light" | "dark" | "system"): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set({
     name: THEME_COOKIE,

@@ -113,11 +113,11 @@ type FieldProps = {
 
 function Field({ label, error, children }: FieldProps) {
   return (
-    <label className="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+    <label className="flex flex-col gap-2 text-sm font-medium text-foreground">
       <span>{label}</span>
       <div>{children}</div>
       {error ? (
-        <span className="text-xs font-normal text-rose-300" role="alert">
+        <span className="text-xs font-normal text-destructive" role="alert">
           {error}
         </span>
       ) : null}
@@ -132,7 +132,7 @@ type StoredKeysSummaryProps = {
 function StoredKeysSummary({ stored }: StoredKeysSummaryProps) {
   if (!stored) {
     return (
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-muted-foreground">
         Belum ada kredensial yang disimpan. Nilai akan di-hash dan tidak ditampilkan ulang setelah tersimpan.
       </p>
     );
@@ -141,8 +141,8 @@ function StoredKeysSummary({ stored }: StoredKeysSummaryProps) {
   const badge = (value?: string) => (value ? `${value.slice(0, 6)}…${value.slice(-4)}` : "-" );
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
-      <p className="font-semibold text-slate-900 dark:text-slate-100">Status penyimpanan</p>
+    <div className="rounded-2xl border border-border bg-card/90 p-4 text-xs text-muted-foreground shadow-sm transition-colors supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur">
+      <p className="font-semibold text-foreground">Status penyimpanan</p>
       <ul className="mt-3 space-y-1">
         <li>OpenAI: {badge(stored.openai)}</li>
         <li>Anthropic: {badge(stored.anthropic)}</li>

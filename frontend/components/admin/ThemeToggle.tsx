@@ -6,8 +6,8 @@ import { Button } from "./ui/button";
 import { useAdminTheme } from "./AdminThemeProvider";
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useAdminTheme();
-  const isDark = theme === "dark";
+  const { resolvedTheme, toggleTheme } = useAdminTheme();
+  const isDark = resolvedTheme === "dark";
   return (
     <Button
       type="button"

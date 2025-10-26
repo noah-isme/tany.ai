@@ -18,9 +18,9 @@ const (
 
 // Leapcell implements the Provider interface using Leapcell's API.
 type Leapcell struct {
-	Key      string
-	Client   *http.Client
-	Endpoint string
+	Key       string
+	Client    *http.Client
+	Endpoint  string
 	ProjectID string
 	TableID   string
 }
@@ -52,9 +52,9 @@ func (l *Leapcell) Generate(ctx context.Context, r Request) (Response, error) {
 	}
 
 	payload := map[string]any{
-		"question": r.Prompt,
+		"question":   r.Prompt,
 		"project_id": l.ProjectID,
-		"table_id": l.TableID,
+		"table_id":   l.TableID,
 		"config": map[string]any{
 			"temperature": r.Temperature,
 			"max_tokens":  r.MaxTokens,

@@ -73,8 +73,8 @@ func (g *Gemini) Generate(ctx context.Context, r Request) (Response, error) {
 			"temperature":     temperature,
 			"maxOutputTokens": maxTokens,
 			"candidateCount":  1,
-			"topP":           0.8,
-			"topK":           20,
+			"topP":            0.8,
+			"topK":            20,
 		},
 	}
 
@@ -134,7 +134,7 @@ func (g *Gemini) Generate(ctx context.Context, r Request) (Response, error) {
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	fmt.Printf("Gemini API Response: %s\n", string(bodyBytes))
 	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 

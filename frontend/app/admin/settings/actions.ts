@@ -55,7 +55,7 @@ function hashSecret(value: string): string {
 
 type ThemeResult = { success: true };
 
-export async function setThemePreferenceAction(theme: "light" | "dark"): Promise<ThemeResult> {
+export async function setThemePreferenceAction(theme: "light" | "dark" | "system"): Promise<ThemeResult> {
   await persistThemePreference(theme);
   revalidatePath("/admin/settings");
   return { success: true };

@@ -4,7 +4,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminThemeProvider } from "@/components/admin/AdminThemeProvider";
 import { ToastProvider } from "@/components/admin/ToastProvider";
-import { getStoredTheme, requireAdminOrRedirect } from "@/lib/auth";
+import { requireAdminOrRedirect } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Admin Panel · tany.ai",
@@ -17,10 +17,9 @@ type AdminLayoutProps = {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const user = await requireAdminOrRedirect();
-  const storedTheme = await getStoredTheme();
 
   return (
-    <AdminThemeProvider defaultTheme={storedTheme ?? "dark"}>
+    <AdminThemeProvider>
       <ToastProvider>
         <a
           href="#admin-main"
@@ -28,7 +27,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         >
           Lompat ke konten utama
         </a>
-        <div className="flex min-h-screen bg-slate-100 text-slate-900 transition dark:bg-slate-950 dark:text-slate-100">
+        <div className="flex min-h-screen bg-background text-foreground transition-colors duration-300">
           <AdminSidebar email={user.email} />
           <div className="flex flex-1 flex-col">
             <AdminHeader email={user.email} />

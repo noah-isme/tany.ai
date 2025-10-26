@@ -40,17 +40,20 @@ export function AdminSidebar({ email }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-slate-200 bg-white/70 px-4 py-6 dark:border-slate-800 dark:bg-slate-950/70 lg:flex">
-      <Link href="/admin" className="flex items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-semibold text-slate-900 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
+    <aside className="hidden w-64 flex-col border-r border-border/70 bg-card/95 px-4 py-6 shadow-sm transition-colors duration-300 supports-[backdrop-filter]:bg-card/80 supports-[backdrop-filter]:backdrop-blur lg:flex">
+      <Link
+        href="/admin"
+        className="flex items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-semibold text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:bg-muted"
+      >
         <LogoMark className="h-10 w-10" />
         <div className="flex flex-col">
-          <span className="text-xs uppercase tracking-[0.35em] text-indigo-400">tany.ai</span>
+          <span className="text-xs uppercase tracking-[0.35em] text-primary/70">tany.ai</span>
           <span>Admin Panel</span>
         </div>
       </Link>
-      <div className="mt-6 rounded-lg border border-slate-200 bg-white/70 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
-        <p className="font-semibold text-slate-700 dark:text-slate-100">Masuk sebagai</p>
-        <p className="mt-1 break-all text-slate-600 dark:text-slate-300">{email}</p>
+      <div className="mt-6 rounded-lg border border-border bg-card/90 p-3 text-xs text-muted-foreground shadow-sm supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur">
+        <p className="font-semibold text-foreground">Masuk sebagai</p>
+        <p className="mt-1 break-all">{email}</p>
       </div>
       <nav className="mt-6 flex-1">
         <ul className="space-y-1">
@@ -62,10 +65,10 @@ export function AdminSidebar({ email }: AdminSidebarProps) {
                 <Link
                   href={item.href}
                   className={clsx(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                     active
-                      ? "bg-indigo-500/90 text-white shadow"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -76,7 +79,7 @@ export function AdminSidebar({ email }: AdminSidebarProps) {
           })}
         </ul>
       </nav>
-      <p className="mt-auto text-xs text-slate-400">Data di panel ini menjadi knowledge base untuk chat tany.ai.</p>
+      <p className="mt-auto text-xs text-muted-foreground">Data di panel ini menjadi knowledge base untuk chat tany.ai.</p>
     </aside>
   );
 }
