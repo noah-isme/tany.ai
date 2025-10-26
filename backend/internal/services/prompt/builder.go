@@ -2,11 +2,30 @@ package prompt
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/tanydotai/tanyai/backend/internal/services/kb"
 )
+
+const (
+	defaultMaxServicesInPrompt = 3
+	defaultMaxProjectsInPrompt = 3
+)
+
+func maxFromEnv(key string, fallback int) int {
+	if fallback <= 0 {
+		fallback = 1
+	}
+	if raw := os.Getenv(key); raw != "" {
+		if val, err := strconv.Atoi(raw); err == nil && val > 0 {
+			return val
+		}
+	}
+	return fallback
+}
 
 // BuildPrompt creates a grounded single-message prompt suitable for Gemini style inputs.
 // Empty or whitespace questions will return an error about invalid input.
@@ -17,17 +36,20 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 		return "Mohon maaf, saya tidak dapat memproses pertanyaan kosong. Silakan ajukan pertanyaan Anda."
 	}
 
+	questionLower := strings.ToLower(question)
+
 	// Handle special case for new users
-	if strings.ToLower(question) == "hi" || strings.ToLower(question) == "halo" || strings.ToLower(question) == "hello" {
+	if questionLower == "hi" || questionLower == "halo" || questionLower == "hello" {
 		question = "Perkenalkan diri Anda dan layanan yang tersedia"
+		questionLower = strings.ToLower(question)
 	}
 	var builder strings.Builder
 	profile := base.Profile
 
 	var maxLen int
-	if strings.Contains(strings.ToLower(question), "layanan") {
+	if strings.Contains(questionLower, "layanan") {
 		maxLen = 800 // Lebih banyak ruang untuk informasi layanan
-	} else if strings.Contains(strings.ToLower(question), "proyek") || strings.Contains(strings.ToLower(question), "portfolio") {
+	} else if strings.Contains(questionLower, "proyek") || strings.Contains(questionLower, "portfolio") {
 		maxLen = 600 // Lebih banyak ruang untuk informasi proyek
 	} else {
 		maxLen = 400 // Default untuk pertanyaan umum
@@ -69,15 +91,18 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 		builder.WriteString("\n")
 	}
 
-	var maxServices int
-	if strings.Contains(strings.ToLower(question), "layanan") ||
-		strings.Contains(strings.ToLower(question), "jasa") ||
-		strings.Contains(strings.ToLower(question), "service") {
-		maxServices = len(base.Services) // Include all services for service-related questions
-	} else {
-		maxServices = 1
+	maxServicesAllowed := maxFromEnv("PROMPT_MAX_SERVICES", defaultMaxServicesInPrompt)
+	serviceLimit := maxServicesAllowed
+	if serviceLimit <= 0 {
+		serviceLimit = defaultMaxServicesInPrompt
 	}
-	services := topServices(base.Services, maxServices)
+	serviceFocused := strings.Contains(questionLower, "layanan") ||
+		strings.Contains(questionLower, "jasa") ||
+		strings.Contains(questionLower, "service")
+	if !serviceFocused && serviceLimit > 1 {
+		serviceLimit = 1
+	}
+	services := topServices(base.Services, serviceLimit)
 	if len(services) > 0 {
 		builder.WriteString("Layanan prioritas:\n")
 		for _, service := range services {
@@ -112,12 +137,18 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 		builder.WriteString("\n")
 	}
 
-	var projects []kb.Project
-	if strings.Contains(strings.ToLower(question), "proyek") || strings.Contains(strings.ToLower(question), "portfolio") {
-		projects = topProjects(base.Projects, 2)
-	} else {
-		projects = topProjects(base.Projects, 1)
+	maxProjectsAllowed := maxFromEnv("PROMPT_MAX_PROJECTS", defaultMaxProjectsInPrompt)
+	if maxProjectsAllowed <= 0 {
+		maxProjectsAllowed = defaultMaxProjectsInPrompt
 	}
+	projectFocused := strings.Contains(questionLower, "proyek") || strings.Contains(questionLower, "portfolio")
+	projectLimit := 1
+	if projectFocused {
+		projectLimit = maxProjectsAllowed
+	} else if maxProjectsAllowed < projectLimit {
+		projectLimit = maxProjectsAllowed
+	}
+	projects := topProjects(base.Projects, projectLimit)
 	if len(projects) > 0 {
 		builder.WriteString("Portofolio unggulan:\n")
 		for _, project := range projects {
