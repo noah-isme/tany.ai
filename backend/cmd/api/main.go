@@ -54,7 +54,7 @@ func main() {
 func setupLogger() (*os.File, error) {
 	logMode := os.Getenv("LOG_MODE")
 	appEnv := os.Getenv("APP_ENV")
-	
+
 	// Production atau LOG_MODE=stdout: log hanya ke stdout
 	if logMode == "stdout" || appEnv == "production" {
 		handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{

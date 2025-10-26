@@ -16,7 +16,7 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 	if question == "" {
 		return "Mohon maaf, saya tidak dapat memproses pertanyaan kosong. Silakan ajukan pertanyaan Anda."
 	}
-	
+
 	// Handle special case for new users
 	if strings.ToLower(question) == "hi" || strings.ToLower(question) == "halo" || strings.ToLower(question) == "hello" {
 		question = "Perkenalkan diri Anda dan layanan yang tersedia"
@@ -32,7 +32,7 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 	} else {
 		maxLen = 400 // Default untuk pertanyaan umum
 	}
-	
+
 	// Start with the question
 	builder.WriteString("Pertanyaan: ")
 	if len(question) > 100 {
@@ -70,9 +70,9 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 	}
 
 	var maxServices int
-	if strings.Contains(strings.ToLower(question), "layanan") || 
-	   strings.Contains(strings.ToLower(question), "jasa") ||
-	   strings.Contains(strings.ToLower(question), "service") {
+	if strings.Contains(strings.ToLower(question), "layanan") ||
+		strings.Contains(strings.ToLower(question), "jasa") ||
+		strings.Contains(strings.ToLower(question), "service") {
 		maxServices = len(base.Services) // Include all services for service-related questions
 	} else {
 		maxServices = 1
@@ -156,10 +156,10 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 	builder.WriteString("\nInstruksi: Jawab dengan ringkas dan ramah dalam bahasa Indonesia. Gunakan hanya informasi yang tersedia di atas.\n\n")
 	builder.WriteString("Berikan jawaban untuk: ")
 	builder.WriteString(strings.TrimSpace(question))
-	
+
 	// Get final text and ensure it's complete
 	result := builder.String()
-	
+
 	// If we need to trim, do it intelligently to keep important parts
 	if len(result) > maxLen {
 		const summaryFormat = `Anda adalah %s, %s yang berlokasi di %s.
@@ -175,7 +175,7 @@ Berikan jawaban untuk: %s`
 		if profile.Title != "" {
 			role = profile.Title
 		}
-		
+
 		location := "Indonesia"
 		if profile.Location != "" {
 			location = profile.Location
@@ -185,7 +185,7 @@ Berikan jawaban untuk: %s`
 		serviceDesc := "Tidak ada informasi layanan"
 		if len(services) > 0 {
 			details := make([]string, 0, 2)
-			
+
 			if len(services[0].PriceRange) > 0 {
 				currency := services[0].Currency
 				if currency == "" {
@@ -205,7 +205,7 @@ Berikan jawaban untuk: %s`
 				detailStr = fmt.Sprintf(" (%s)", strings.Join(details, ", "))
 			}
 
-			serviceDesc = fmt.Sprintf("Layanan utama:\n- %s%s", 
+			serviceDesc = fmt.Sprintf("Layanan utama:\n- %s%s",
 				services[0].Name,
 				detailStr)
 		}
@@ -219,7 +219,7 @@ Berikan jawaban untuk: %s`
 			"Instruksi: Jawab dengan ringkas dan ramah dalam bahasa Indonesia. Gunakan hanya informasi yang tersedia di atas.",
 			strings.TrimSpace(question))
 	}
-	
+
 	return result
 }
 

@@ -12,13 +12,13 @@ import (
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		
+
 		// Build allowed origins from environment
 		allowedOrigins := []string{
 			"http://localhost:3000",
 			"http://127.0.0.1:3000",
 		}
-		
+
 		// Add production frontend origin from environment
 		if frontendOrigin := os.Getenv("FRONTEND_ORIGIN"); frontendOrigin != "" {
 			// Support multiple origins separated by comma
