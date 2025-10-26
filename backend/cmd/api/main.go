@@ -21,7 +21,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("setup logger: %v", err)
 	}
-	defer logFile.Close()
+	if logFile != nil {
+		defer logFile.Close()
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -50,6 +52,20 @@ func main() {
 }
 
 func setupLogger() (*os.File, error) {
+	logMode := os.Getenv("LOG_MODE")
+	appEnv := os.Getenv("APP_ENV")
+	
+	// Production atau LOG_MODE=stdout: log hanya ke stdout
+	if logMode == "stdout" || appEnv == "production" {
+		handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelInfo,
+		})
+		slog.SetDefault(slog.New(handler))
+		return nil, nil
+	}
+
+	// Development: log ke file dan stdout
 	if err := os.MkdirAll("logs", 0o755); err != nil {
 		return nil, err
 	}
@@ -60,7 +76,10 @@ func setupLogger() (*os.File, error) {
 		return nil, err
 	}
 
-	handler := slog.NewJSONHandler(io.MultiWriter(os.Stdout, file), &slog.HandlerOptions{AddSource: true})
+	handler := slog.NewJSONHandler(io.MultiWriter(os.Stdout, file), &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	})
 	slog.SetDefault(slog.New(handler))
 
 	return file, nil
