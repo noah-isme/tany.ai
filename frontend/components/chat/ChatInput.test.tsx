@@ -12,7 +12,7 @@ describe("ChatInput", () => {
     render(<ChatInput onSend={handleSend} />);
 
     const textarea = screen.getByPlaceholderText(
-      /tanyakan apa saja/i,
+      /tanyakan layanan, harga/i,
     ) as HTMLTextAreaElement;
     await user.type(textarea, "Apa layanan andalanmu?");
 

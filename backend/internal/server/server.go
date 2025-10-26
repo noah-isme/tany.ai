@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/tanydotai/tanyai/backend/internal/ai"
 	"github.com/tanydotai/tanyai/backend/internal/auth"
 	"github.com/tanydotai/tanyai/backend/internal/config"
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
@@ -36,7 +38,8 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 
 	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
 	chatHistoryRepo := repos.NewChatHistoryRepository(database)
-	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel)
+	provider := resolveProvider(cfg)
+	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider)
 	healthHandler := handlers.NewHealthHandler(database)
 
 	userRepo := repos.NewUserRepository(database)
@@ -161,6 +164,22 @@ func (s *Server) Run(ctx context.Context) error {
 // Engine exposes the underlying Gin engine for testing.
 func (s *Server) Engine() *gin.Engine {
 	return s.engine
+}
+
+func resolveProvider(cfg config.Config) ai.Provider {
+	switch strings.ToLower(cfg.AIProvider) {
+	case "gemini":
+		if strings.TrimSpace(cfg.GoogleGenAIKey) == "" {
+			log.Println("[warn] GOOGLE_GENAI_API_KEY is empty, using mock provider")
+			return ai.NewMock()
+		}
+		return ai.NewGemini(cfg.GoogleGenAIKey, cfg.ChatModel)
+	case "mock", "":
+		return ai.NewMock()
+	default:
+		log.Printf("[warn] unsupported AI_PROVIDER=%s, using mock provider", cfg.AIProvider)
+		return ai.NewMock()
+	}
 }
 
 func resolvePort() string {

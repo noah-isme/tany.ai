@@ -1,92 +1,152 @@
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowUpRight, BadgeCheck, MessageCircle } from "lucide-react";
 
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ContactPanel } from "@/components/home/ContactPanel";
+import { PortfolioShowcase } from "@/components/home/PortfolioShowcase";
+import { ServiceGrid } from "@/components/home/ServiceGrid";
 import { fetchKnowledgeBase } from "@/lib/knowledge";
 
 export const revalidate = 0;
 
+function initialsFromName(name: string): string {
+  if (!name) return "TA";
+  const tokens = name.trim().split(/\s+/);
+  if (tokens.length === 1) {
+    return tokens[0].slice(0, 2).toUpperCase();
+  }
+  return (tokens[0][0] + tokens[1][0]).toUpperCase();
+}
+
 export default async function HomePage() {
   const knowledgeBase = await fetchKnowledgeBase();
-  const featuredServices = knowledgeBase.services.slice(0, 3);
+  const featuredServices = knowledgeBase.services
+    .filter((service) => service.description)
+    .slice(0, 4);
+  const fallbackServices =
+    featuredServices.length > 0 ? featuredServices : knowledgeBase.services.slice(0, 4);
   const featuredProjects = knowledgeBase.projects
     .filter((project) => project.isFeatured)
     .concat(knowledgeBase.projects)
-    .slice(0, 3);
+    .filter((project, index, array) => array.findIndex((item) => item.id === project.id) === index)
+    .slice(0, 4);
+
+  const profile = knowledgeBase.profile;
+  const subtitle = profile.title ?? "AI Client Partner";
+  const updatedLabel = profile.updatedAt
+    ? new Date(profile.updatedAt).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "Realtime";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-16 px-6 py-12">
-      <section className="grid gap-12 lg:grid-cols-2 lg:items-start">
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 lg:text-5xl">
-            {knowledgeBase.profile.name || "tany.ai"}
-          </h1>
-          <p className="text-lg leading-relaxed text-slate-600">
-            tany.ai menghadirkan antarmuka chat modern yang terhubung ke knowledge
-            base personal sehingga setiap jawaban terasa relevan dengan layanan
-            Anda.
-          </p>
-          <ul className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-            {featuredServices.map((service) => (
-              <li
-                key={service.id}
-                className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+    <main className="bg-app">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-20 px-6 py-16 lg:px-10">
+        <section className="grid gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+          <div className="space-y-8">
+            <div className="flex items-center gap-5">
+              <div className="relative h-20 w-20 overflow-hidden rounded-3xl border border-white/10 bg-white/10">
+                {profile.avatarUrl ? (
+                  <Image
+                    src={profile.avatarUrl}
+                    alt={profile.name}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                    priority
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-white/80">
+                    {initialsFromName(profile.name)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/70">
+                  <BadgeCheck className="h-3.5 w-3.5" /> {subtitle}
+                </span>
+                <h1 className="mt-4 max-w-xl font-display text-4xl leading-tight tracking-tight text-white sm:text-5xl">
+                  {profile.name || "tany.ai"}
+                </h1>
+              </div>
+            </div>
+            <p className="max-w-xl text-lg leading-relaxed text-white/70">
+              {profile.bio ??
+                "Antarmuka chat yang grounded pada knowledge base pribadi Anda. Jawaban terasa manusiawi, relevan, dan dapat mengonversi prospek lebih cepat."}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {profile.location ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm text-white/80">
+                  <MessageCircle className="h-4 w-4" /> {profile.location}
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm text-white/80">
+                Real-time AI chat
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm text-white/80">
+                Knowledge base terkurasi
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="#chat"
+                className="btn-accent flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               >
-                <h3 className="font-semibold text-slate-900">{service.name}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  {service.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <div className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-slate-100">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-indigo-200">
-              Kontak
-            </h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              {knowledgeBase.profile.email ? (
-                <li>
-                  Email: <Link href={`mailto:${knowledgeBase.profile.email}`} className="text-indigo-200 underline">
-                    {knowledgeBase.profile.email}
-                  </Link>
-                </li>
-              ) : null}
-              {knowledgeBase.profile.phone ? <li>WhatsApp: {knowledgeBase.profile.phone}</li> : null}
-            </ul>
+                Mulai chat
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="#services"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                prefetch
+              >
+                Lihat layanan
+              </Link>
+            </div>
+            <ServiceGrid services={fallbackServices} />
           </div>
-        </div>
-        <div className="min-h-[480px] rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
-          <ChatWindow initialKnowledge={knowledgeBase} />
-        </div>
-      </section>
-      <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-slate-900">Portofolio</h2>
-        <div className="grid gap-6 md:grid-cols-2">
-          {featuredProjects.map((project) => (
-            <article
-              key={project.id}
-              className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm"
-            >
-              <h3 className="text-lg font-semibold text-slate-900">
-                {project.title}
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">{project.description}</p>
-              {project.techStack.length ? (
-                <p className="mt-2 text-xs uppercase tracking-wide text-slate-400">
-                  {project.techStack.join(" • ")}
-                </p>
-              ) : null}
-              {project.projectUrl ? (
-                <Link
-                  href={project.projectUrl}
-                  className="mt-3 inline-block text-sm font-medium text-indigo-600"
-                >
-                  Lihat proyek
-                </Link>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      </section>
+          <div id="chat" className="relative flex h-full flex-col">
+            <div className="surface-card relative flex min-h-[520px] flex-1 flex-col overflow-hidden rounded-3xl p-6 shadow-[0_18px_60px_rgba(16,24,48,0.45)]">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.32em] text-white/50">Chat Assist</p>
+                  <p className="mt-1 text-sm text-white/70">Tanya layanan, harga, hingga contoh proyek.</p>
+                </div>
+                <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
+                  {updatedLabel}
+                </span>
+              </div>
+              <ChatWindow initialKnowledge={knowledgeBase} />
+            </div>
+          </div>
+        </section>
+
+        <section id="services" className="space-y-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-xs uppercase tracking-[0.4em] text-white/50">Layanan utama</span>
+            <h2 className="font-display text-3xl text-white">Solusi paling dicari klien</h2>
+            <p className="max-w-2xl text-base text-white/60">
+              Paket layanan disusun agar ringkas dan mudah dimengerti calon klien. Setiap kartu memuat ringkasan manfaat dan ajakan bertindak ke detail lengkap.
+            </p>
+          </div>
+          <ServiceGrid services={fallbackServices} showActions variant="expanded" />
+        </section>
+
+        <section className="space-y-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-xs uppercase tracking-[0.4em] text-white/50">Portofolio</span>
+            <h2 className="font-display text-3xl text-white">Jejak proyek yang relevan</h2>
+            <p className="max-w-2xl text-base text-white/60">
+              Dari produk SaaS hingga landing page kampanye, highlight proyek berikut menunjukkan kedalaman kolaborasi dan teknologi yang digunakan.
+            </p>
+          </div>
+          <PortfolioShowcase projects={featuredProjects} />
+        </section>
+      </div>
+      <ContactPanel profile={profile} />
     </main>
   );
 }

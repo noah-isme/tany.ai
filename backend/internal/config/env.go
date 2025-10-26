@@ -28,7 +28,7 @@ const (
 	defaultKnowledgeRateBurst   = 30
 	defaultChatRatePer5Min      = 30
 	defaultChatRateBurst        = 30
-	defaultAIModel              = "mock-local"
+	defaultAIModel              = "gemini-1.5-pro"
 	minJWTSecretLength          = 32
 )
 
@@ -62,6 +62,8 @@ type Config struct {
 	ChatRateLimitPerMin      int
 	ChatRateLimitBurst       int
 	ChatModel                string
+	AIProvider               string
+	GoogleGenAIKey           string
 }
 
 // StorageDriver enumerates supported object storage providers.
@@ -133,7 +135,9 @@ func Load() (Config, error) {
 		KnowledgeRateLimitBurst:  defaultKnowledgeRateBurst,
 		ChatRateLimitPerMin:      perMinuteFromWindow(defaultChatRatePer5Min),
 		ChatRateLimitBurst:       defaultChatRateBurst,
-		ChatModel:                defaultAIModel,
+		ChatModel:                getEnv("GEMINI_MODEL", defaultAIModel),
+		AIProvider:               strings.ToLower(getEnv("AI_PROVIDER", "mock")),
+		GoogleGenAIKey:           strings.TrimSpace(os.Getenv("GOOGLE_GENAI_API_KEY")),
 	}
 
 	if cfg.PostgresURL == "" {

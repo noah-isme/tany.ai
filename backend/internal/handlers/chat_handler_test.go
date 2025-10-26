@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tanydotai/tanyai/backend/internal/ai"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
 	"github.com/tanydotai/tanyai/backend/internal/services/kb"
@@ -45,6 +47,18 @@ func (h *historyRecorder) ListRecentByChat(ctx context.Context, chatID uuid.UUID
 
 var _ repos.ChatHistoryRepository = (*historyRecorder)(nil)
 
+type stubProvider struct {
+	response string
+	err      error
+}
+
+func (s *stubProvider) Generate(context.Context, ai.Request) (ai.Response, error) {
+	if s.err != nil {
+		return ai.Response{}, s.err
+	}
+	return ai.Response{Text: s.response}, nil
+}
+
 func TestHandleChatStoresHistory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	knowledge := &stubKnowledge{base: kb.KnowledgeBase{
@@ -53,7 +67,7 @@ func TestHandleChatStoresHistory(t *testing.T) {
 		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
 	}}
 	history := &historyRecorder{}
-	handler := NewChatHandler(knowledge, history, "mock-model")
+	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"})
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -76,8 +90,8 @@ func TestHandleChatStoresHistory(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if payload.Answer == "" {
-		t.Fatalf("expected answer to be populated")
+	if payload.Answer != "Jawaban AI" {
+		t.Fatalf("expected provider answer, got %q", payload.Answer)
 	}
 	if payload.Prompt == "" {
 		t.Fatalf("prompt should not be empty")
@@ -87,10 +101,42 @@ func TestHandleChatStoresHistory(t *testing.T) {
 	}
 }
 
+func TestHandleChatFallsBackOnProviderError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	knowledge := &stubKnowledge{base: kb.KnowledgeBase{
+		Profile:  kb.Profile{Name: "Tanya"},
+		Services: []kb.Service{{Name: "Consulting"}},
+		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
+	}}
+	history := &historyRecorder{}
+	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{err: errors.New("boom")})
+	engine := gin.New()
+	engine.POST("/chat", handler.HandleChat)
+
+	req := httptest.NewRequest(http.MethodPost, "/chat", bytes.NewBufferString(`{"question":"Layanan apa saja?"}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	engine.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.Code)
+	}
+
+	var payload ChatResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if payload.Answer != "Maaf, terjadi kendala saat memproses pesan. Silakan coba lagi." {
+		t.Fatalf("expected fallback answer, got %q", payload.Answer)
+	}
+}
+
 func TestHandleKnowledgeBaseSetsCachingHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	knowledge := &stubKnowledge{base: kb.KnowledgeBase{Profile: kb.Profile{Name: "Tanya"}}}
-	handler := NewChatHandler(knowledge, nil, "mock")
+	handler := NewChatHandler(knowledge, nil, "mock", &stubProvider{response: "ok"})
 	engine := gin.New()
 	engine.GET("/kb", handler.HandleKnowledgeBase)
 

@@ -8,51 +8,51 @@ import (
 	"github.com/tanydotai/tanyai/backend/internal/services/kb"
 )
 
-// BuildSystemPrompt constructs a grounded system prompt for the chat model.
-func BuildSystemPrompt(base kb.KnowledgeBase) string {
+// BuildPrompt creates a grounded single-message prompt suitable for Gemini style inputs.
+func BuildPrompt(base kb.KnowledgeBase, question string) string {
 	var builder strings.Builder
 	profile := base.Profile
-	builder.WriteString("Kamu adalah asisten virtual untuk ")
-	builder.WriteString(profile.Name)
-	builder.WriteString(". Jawab menggunakan data internal berikut dan jangan berimprovisasi.\n\n")
 
-	if profile.Title != "" || profile.Bio != "" || profile.Location != "" {
-		builder.WriteString("Profil:\n")
+	builder.WriteString("Anda adalah asisten virtual untuk ")
+	if profile.Name != "" {
+		builder.WriteString(profile.Name)
+	} else {
+		builder.WriteString("tany.ai")
+	}
+	builder.WriteString(". Jawab menggunakan informasi berikut.\n\n")
+
+	if profile.Title != "" || profile.Location != "" || profile.Bio != "" {
+		builder.WriteString("Profil singkat:\n")
 		if profile.Title != "" {
-			builder.WriteString(fmt.Sprintf("- Title: %s\n", profile.Title))
-		}
-		if profile.Bio != "" {
-			builder.WriteString(fmt.Sprintf("- Bio: %s\n", profile.Bio))
+			builder.WriteString(fmt.Sprintf("- Peran: %s\n", profile.Title))
 		}
 		if profile.Location != "" {
 			builder.WriteString(fmt.Sprintf("- Lokasi: %s\n", profile.Location))
 		}
+		if profile.Bio != "" {
+			builder.WriteString(fmt.Sprintf("- Bio: %s\n", profile.Bio))
+		}
 		builder.WriteString("\n")
 	}
 
-	if len(base.Skills) > 0 {
-		skills := make([]string, 0, len(base.Skills))
-		for _, skill := range base.Skills {
-			skills = append(skills, skill.Name)
-		}
-		builder.WriteString("Keahlian utama: ")
-		builder.WriteString(strings.Join(skills, ", "))
-		builder.WriteString(".\n\n")
-	}
-
-	if len(base.Services) > 0 {
-		builder.WriteString("Layanan yang tersedia:\n")
-		for _, service := range base.Services {
+	services := topServices(base.Services, 3)
+	if len(services) > 0 {
+		builder.WriteString("Layanan prioritas:\n")
+		for _, service := range services {
 			line := fmt.Sprintf("- %s", service.Name)
 			details := make([]string, 0, 3)
 			if service.Description != "" {
 				details = append(details, service.Description)
 			}
 			if len(service.PriceRange) > 0 {
-				details = append(details, fmt.Sprintf("Harga: %s", strings.Join(service.PriceRange, " - ")))
+				currency := service.Currency
+				if currency == "" {
+					currency = "IDR"
+				}
+				details = append(details, fmt.Sprintf("Harga %s %s", currency, strings.Join(service.PriceRange, " – ")))
 			}
 			if service.DurationLabel != "" {
-				details = append(details, fmt.Sprintf("Durasi: %s", service.DurationLabel))
+				details = append(details, fmt.Sprintf("Durasi %s", service.DurationLabel))
 			}
 			if len(details) > 0 {
 				line += " — " + strings.Join(details, "; ")
@@ -63,16 +63,9 @@ func BuildSystemPrompt(base kb.KnowledgeBase) string {
 		builder.WriteString("\n")
 	}
 
-	if len(base.Projects) > 0 {
-		builder.WriteString("Proyek unggulan:\n")
-		projects := make([]kb.Project, len(base.Projects))
-		copy(projects, base.Projects)
-		sort.SliceStable(projects, func(i, j int) bool {
-			if projects[i].IsFeatured == projects[j].IsFeatured {
-				return projects[i].Order < projects[j].Order
-			}
-			return projects[i].IsFeatured && !projects[j].IsFeatured
-		})
+	projects := topProjects(base.Projects, 2)
+	if len(projects) > 0 {
+		builder.WriteString("Portofolio unggulan:\n")
 		for _, project := range projects {
 			line := fmt.Sprintf("- %s", project.Title)
 			details := make([]string, 0, 3)
@@ -80,7 +73,7 @@ func BuildSystemPrompt(base kb.KnowledgeBase) string {
 				details = append(details, project.Description)
 			}
 			if len(project.TechStack) > 0 {
-				details = append(details, fmt.Sprintf("Teknologi: %s", strings.Join(project.TechStack, ", ")))
+				details = append(details, fmt.Sprintf("Tech: %s", strings.Join(project.TechStack, ", ")))
 			}
 			if project.ProjectURL != "" {
 				details = append(details, fmt.Sprintf("URL: %s", project.ProjectURL))
@@ -94,35 +87,93 @@ func BuildSystemPrompt(base kb.KnowledgeBase) string {
 		builder.WriteString("\n")
 	}
 
-	builder.WriteString("Aturan ketat:\n")
+	builder.WriteString("Aturan:\n")
 	builder.WriteString("1. Gunakan hanya informasi di atas.\n")
-	builder.WriteString("2. Jika data tidak tersedia, jawab dengan jujur bahwa informasinya belum ada.\n")
-	builder.WriteString("3. Jawab dalam bahasa Indonesia yang ramah profesional.\n")
+	builder.WriteString("2. Jika data tidak tersedia, jawab bahwa informasinya belum ada.\n")
+	builder.WriteString("3. Jawab dalam bahasa Indonesia yang ramah profesional dan ringkas.\n\n")
+
+	builder.WriteString("Pertanyaan: ")
+	builder.WriteString(strings.TrimSpace(question))
+	builder.WriteString("\n\nJawaban yang relevan:")
 
 	return builder.String()
 }
 
-// SummarizeForHuman provides a deterministic fallback answer using the knowledge base.
-func SummarizeForHuman(question string, base kb.KnowledgeBase) string {
-	var services []string
-	for _, service := range base.Services {
-		services = append(services, service.Name)
+func topServices(services []kb.Service, limit int) []kb.Service {
+	if len(services) == 0 {
+		return nil
 	}
-	var featured string
-	for _, project := range base.Projects {
-		if project.IsFeatured {
-			featured = project.Title
-			break
+	sorted := make([]kb.Service, len(services))
+	copy(sorted, services)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].Order < sorted[j].Order
+	})
+	if len(sorted) > limit {
+		sorted = sorted[:limit]
+	}
+	return sorted
+}
+
+func topProjects(projects []kb.Project, limit int) []kb.Project {
+	if len(projects) == 0 {
+		return nil
+	}
+	sorted := make([]kb.Project, len(projects))
+	copy(sorted, projects)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].IsFeatured == sorted[j].IsFeatured {
+			return sorted[i].Order < sorted[j].Order
 		}
+		return sorted[i].IsFeatured && !sorted[j].IsFeatured
+	})
+	if len(sorted) > limit {
+		sorted = sorted[:limit]
 	}
-	if featured == "" && len(base.Projects) > 0 {
-		featured = base.Projects[0].Title
+	return sorted
+}
+
+// SummarizeForHuman returns a deterministic answer if the provider is unavailable.
+func SummarizeForHuman(question string, base kb.KnowledgeBase) string {
+	services := topServices(base.Services, 3)
+	serviceNames := make([]string, 0, len(services))
+	for _, service := range services {
+		serviceNames = append(serviceNames, service.Name)
 	}
 
-	return fmt.Sprintf("Pertanyaan diterima: %s\n\nHalo! Saya %s. Saya menawarkan layanan %s. Contoh proyek terbaru: %s.\nSilakan hubungi kami untuk detail lanjutan.",
-		question,
-		base.Profile.Name,
-		strings.Join(services, ", "),
-		featured,
-	)
+	projects := topProjects(base.Projects, 1)
+	featured := ""
+	if len(projects) > 0 {
+		featured = projects[0].Title
+	}
+
+	contact := ""
+	if base.Profile.Email != "" {
+		contact = fmt.Sprintf("Hubungi %s", base.Profile.Email)
+	} else if base.Profile.Phone != "" {
+		contact = fmt.Sprintf("Kontak %s", base.Profile.Phone)
+	}
+
+	builder := strings.Builder{}
+	builder.WriteString("Pertanyaan diterima: ")
+	builder.WriteString(strings.TrimSpace(question))
+	builder.WriteString("\n\n")
+	if base.Profile.Name != "" {
+		builder.WriteString(fmt.Sprintf("Halo! Saya %s. ", base.Profile.Name))
+	} else {
+		builder.WriteString("Halo! Saya asisten tany.ai. ")
+	}
+	if len(serviceNames) > 0 {
+		builder.WriteString("Saat ini saya menawarkan ")
+		builder.WriteString(strings.Join(serviceNames, ", "))
+		builder.WriteString(". ")
+	}
+	if featured != "" {
+		builder.WriteString(fmt.Sprintf("Contoh proyek terbaru: %s. ", featured))
+	}
+	if contact != "" {
+		builder.WriteString(contact)
+		builder.WriteString(" untuk detail lanjut.")
+	}
+
+	return strings.TrimSpace(builder.String())
 }
