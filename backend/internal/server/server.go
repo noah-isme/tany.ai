@@ -34,7 +34,7 @@ type Server struct {
 // New constructs an HTTP server with all routes and middleware registered.
 func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine := gin.New()
-	engine.Use(middleware.RequestLogger(), middleware.RecoverWithLog(), middleware.SecurityHeaders())
+	engine.Use(middleware.RequestLogger(), middleware.RecoverWithLog(), middleware.SecurityHeaders(), middleware.CORS())
 
 	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
 	chatHistoryRepo := repos.NewChatHistoryRepository(database)
@@ -174,6 +174,12 @@ func resolveProvider(cfg config.Config) ai.Provider {
 			return ai.NewMock()
 		}
 		return ai.NewGemini(cfg.GoogleGenAIKey, cfg.ChatModel)
+	case "leapcell":
+		if strings.TrimSpace(cfg.LeapcellAPIKey) == "" {
+			log.Println("[warn] LEAPCELL_API_KEY is empty, using mock provider")
+			return ai.NewMock()
+		}
+		return ai.NewLeapcell(cfg.LeapcellAPIKey, cfg.LeapcellProjectID, cfg.LeapcellTableID)
 	case "mock", "":
 		return ai.NewMock()
 	default:

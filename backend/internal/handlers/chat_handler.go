@@ -90,8 +90,8 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 	if h.provider != nil {
 		resp, err := h.provider.Generate(c.Request.Context(), ai.Request{
 			Prompt:      promptText,
-			MaxTokens:   512,
-			Temperature: 0.6,
+			MaxTokens:   2048, // Increased token limit for longer responses
+			Temperature: 0.7,  // Matched with Gemini provider
 		})
 		if err != nil {
 			providerErr = err

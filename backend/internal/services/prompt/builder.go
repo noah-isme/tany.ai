@@ -9,10 +9,40 @@ import (
 )
 
 // BuildPrompt creates a grounded single-message prompt suitable for Gemini style inputs.
+// Empty or whitespace questions will return an error about invalid input.
 func BuildPrompt(base kb.KnowledgeBase, question string) string {
+	// Validate and sanitize input
+	question = strings.TrimSpace(question)
+	if question == "" {
+		return "Mohon maaf, saya tidak dapat memproses pertanyaan kosong. Silakan ajukan pertanyaan Anda."
+	}
+	
+	// Handle special case for new users
+	if strings.ToLower(question) == "hi" || strings.ToLower(question) == "halo" || strings.ToLower(question) == "hello" {
+		question = "Perkenalkan diri Anda dan layanan yang tersedia"
+	}
 	var builder strings.Builder
 	profile := base.Profile
 
+	var maxLen int
+	if strings.Contains(strings.ToLower(question), "layanan") {
+		maxLen = 800 // Lebih banyak ruang untuk informasi layanan
+	} else if strings.Contains(strings.ToLower(question), "proyek") || strings.Contains(strings.ToLower(question), "portfolio") {
+		maxLen = 600 // Lebih banyak ruang untuk informasi proyek
+	} else {
+		maxLen = 400 // Default untuk pertanyaan umum
+	}
+	
+	// Start with the question
+	builder.WriteString("Pertanyaan: ")
+	if len(question) > 100 {
+		builder.WriteString(question[:97] + "...")
+	} else {
+		builder.WriteString(question)
+	}
+	builder.WriteString("\n\n")
+
+	// Add context header
 	builder.WriteString("Anda adalah asisten virtual untuk ")
 	if profile.Name != "" {
 		builder.WriteString(profile.Name)
@@ -30,19 +60,35 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 			builder.WriteString(fmt.Sprintf("- Lokasi: %s\n", profile.Location))
 		}
 		if profile.Bio != "" {
-			builder.WriteString(fmt.Sprintf("- Bio: %s\n", profile.Bio))
+			bio := profile.Bio
+			if len(bio) > 200 {
+				bio = bio[:197] + "..."
+			}
+			builder.WriteString(fmt.Sprintf("- Bio: %s\n", bio))
 		}
 		builder.WriteString("\n")
 	}
 
-	services := topServices(base.Services, 3)
+	var maxServices int
+	if strings.Contains(strings.ToLower(question), "layanan") || 
+	   strings.Contains(strings.ToLower(question), "jasa") ||
+	   strings.Contains(strings.ToLower(question), "service") {
+		maxServices = len(base.Services) // Include all services for service-related questions
+	} else {
+		maxServices = 1
+	}
+	services := topServices(base.Services, maxServices)
 	if len(services) > 0 {
 		builder.WriteString("Layanan prioritas:\n")
 		for _, service := range services {
 			line := fmt.Sprintf("- %s", service.Name)
 			details := make([]string, 0, 3)
 			if service.Description != "" {
-				details = append(details, service.Description)
+				desc := service.Description
+				if len(desc) > 100 {
+					desc = desc[:97] + "..."
+				}
+				details = append(details, desc)
 			}
 			if len(service.PriceRange) > 0 {
 				currency := service.Currency
@@ -57,23 +103,39 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 			if len(details) > 0 {
 				line += " — " + strings.Join(details, "; ")
 			}
+			if len(line) > 200 {
+				line = line[:197] + "..."
+			}
 			builder.WriteString(line)
 			builder.WriteString("\n")
 		}
 		builder.WriteString("\n")
 	}
 
-	projects := topProjects(base.Projects, 2)
+	var projects []kb.Project
+	if strings.Contains(strings.ToLower(question), "proyek") || strings.Contains(strings.ToLower(question), "portfolio") {
+		projects = topProjects(base.Projects, 2)
+	} else {
+		projects = topProjects(base.Projects, 1)
+	}
 	if len(projects) > 0 {
 		builder.WriteString("Portofolio unggulan:\n")
 		for _, project := range projects {
 			line := fmt.Sprintf("- %s", project.Title)
 			details := make([]string, 0, 3)
 			if project.Description != "" {
-				details = append(details, project.Description)
+				desc := project.Description
+				if len(desc) > 100 {
+					desc = desc[:97] + "..."
+				}
+				details = append(details, desc)
 			}
 			if len(project.TechStack) > 0 {
-				details = append(details, fmt.Sprintf("Tech: %s", strings.Join(project.TechStack, ", ")))
+				stack := project.TechStack
+				if len(stack) > 5 {
+					stack = stack[:5]
+				}
+				details = append(details, fmt.Sprintf("Tech: %s", strings.Join(stack, ", ")))
 			}
 			if project.ProjectURL != "" {
 				details = append(details, fmt.Sprintf("URL: %s", project.ProjectURL))
@@ -81,22 +143,84 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 			if len(details) > 0 {
 				line += " — " + strings.Join(details, "; ")
 			}
+			if len(line) > 200 {
+				line = line[:197] + "..."
+			}
 			builder.WriteString(line)
 			builder.WriteString("\n")
 		}
 		builder.WriteString("\n")
 	}
 
-	builder.WriteString("Aturan:\n")
-	builder.WriteString("1. Gunakan hanya informasi di atas.\n")
-	builder.WriteString("2. Jika data tidak tersedia, jawab bahwa informasinya belum ada.\n")
-	builder.WriteString("3. Jawab dalam bahasa Indonesia yang ramah profesional dan ringkas.\n\n")
-
-	builder.WriteString("Pertanyaan: ")
+	// Add final instructions
+	builder.WriteString("\nInstruksi: Jawab dengan ringkas dan ramah dalam bahasa Indonesia. Gunakan hanya informasi yang tersedia di atas.\n\n")
+	builder.WriteString("Berikan jawaban untuk: ")
 	builder.WriteString(strings.TrimSpace(question))
-	builder.WriteString("\n\nJawaban yang relevan:")
+	
+	// Get final text and ensure it's complete
+	result := builder.String()
+	
+	// If we need to trim, do it intelligently to keep important parts
+	if len(result) > maxLen {
+		const summaryFormat = `Anda adalah %s, %s yang berlokasi di %s.
 
-	return builder.String()
+%s
+
+%s
+
+Berikan jawaban untuk: %s`
+
+		// Get core information
+		role := "Full Stack Developer & AI Consultant"
+		if profile.Title != "" {
+			role = profile.Title
+		}
+		
+		location := "Indonesia"
+		if profile.Location != "" {
+			location = profile.Location
+		}
+
+		// Get top service
+		serviceDesc := "Tidak ada informasi layanan"
+		if len(services) > 0 {
+			details := make([]string, 0, 2)
+			
+			if len(services[0].PriceRange) > 0 {
+				currency := services[0].Currency
+				if currency == "" {
+					currency = "IDR"
+				}
+				priceRange := strings.Join(services[0].PriceRange, " - ")
+				priceRange = strings.ReplaceAll(priceRange, "IDR ", "") // Remove duplicate IDR
+				details = append(details, fmt.Sprintf("Harga %s %s", currency, priceRange))
+			}
+
+			if services[0].DurationLabel != "" {
+				details = append(details, fmt.Sprintf("Durasi %s", services[0].DurationLabel))
+			}
+
+			detailStr := ""
+			if len(details) > 0 {
+				detailStr = fmt.Sprintf(" (%s)", strings.Join(details, ", "))
+			}
+
+			serviceDesc = fmt.Sprintf("Layanan utama:\n- %s%s", 
+				services[0].Name,
+				detailStr)
+		}
+
+		// Format the shortened version
+		return fmt.Sprintf(summaryFormat,
+			profile.Name,
+			role,
+			location,
+			serviceDesc,
+			"Instruksi: Jawab dengan ringkas dan ramah dalam bahasa Indonesia. Gunakan hanya informasi yang tersedia di atas.",
+			strings.TrimSpace(question))
+	}
+	
+	return result
 }
 
 func topServices(services []kb.Service, limit int) []kb.Service {

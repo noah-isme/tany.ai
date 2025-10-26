@@ -64,6 +64,9 @@ type Config struct {
 	ChatModel                string
 	AIProvider               string
 	GoogleGenAIKey           string
+	LeapcellAPIKey          string
+	LeapcellProjectID       string
+	LeapcellTableID         string
 }
 
 // StorageDriver enumerates supported object storage providers.

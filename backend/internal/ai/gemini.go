@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultGeminiEndpoint = "https://generativelanguage.googleapis.com"
-	defaultGeminiModel    = "gemini-1.5-pro"
+	defaultGeminiModel    = "gemini-2.5-pro"
 )
 
 // Gemini implements the Provider interface using Google Gemini's REST API.
@@ -35,7 +35,7 @@ func NewGemini(key, model string) *Gemini {
 	return &Gemini{
 		Key:      strings.TrimSpace(key),
 		Model:    model,
-		Client:   &http.Client{Timeout: 30 * time.Second},
+		Client:   &http.Client{Timeout: 15 * time.Second},
 		Endpoint: defaultGeminiEndpoint,
 	}
 }
@@ -73,8 +73,8 @@ func (g *Gemini) Generate(ctx context.Context, r Request) (Response, error) {
 			"temperature":     temperature,
 			"maxOutputTokens": maxTokens,
 			"candidateCount":  1,
-			"topP":            0.95,
-			"topK":            40,
+			"topP":           0.8,
+			"topK":           20,
 		},
 	}
 
@@ -89,10 +89,15 @@ func (g *Gemini) Generate(ctx context.Context, r Request) (Response, error) {
 	}
 	endpoint = strings.TrimSuffix(endpoint, "/")
 
+	// Debug output
+	fmt.Printf("Gemini request to: %s/v1beta/models/%s:generateContent\n", endpoint, g.Model)
+	fmt.Printf("Request body: %s\n", string(body))
+
+	apiURL := fmt.Sprintf("%s/v1beta/models/%s:generateContent", endpoint, g.Model)
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		fmt.Sprintf("%s/v1beta/models/%s:generateContent", endpoint, g.Model),
+		apiURL,
 		bytes.NewReader(body),
 	)
 	if err != nil {
@@ -124,14 +129,37 @@ func (g *Gemini) Generate(ctx context.Context, r Request) (Response, error) {
 		)
 	}
 
+	// Read and log the response body for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Response{}, fmt.Errorf("failed to read response body: %w", err)
+	}
+	
+	fmt.Printf("Gemini API Response: %s\n", string(bodyBytes))
+	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	var decoded struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Status  string `json:"status"`
+		} `json:"error"`
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
 					Text string `json:"text"`
 				} `json:"parts"`
 			} `json:"content"`
+			FinishReason string `json:"finishReason"`
 		} `json:"candidates"`
+	}
+
+	if err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(&decoded); err != nil {
+		return Response{}, fmt.Errorf("failed to decode response: %w\nResponse body: %s", err, string(bodyBytes))
+	}
+
+	if decoded.Error.Message != "" {
+		return Response{}, fmt.Errorf("gemini API error: %s", decoded.Error.Message)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
