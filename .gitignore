@@ -26,3 +26,4 @@ backend/logs/
 backend/bin/
 backend/tmp/
 backend/dist/
+.vercel

@@ -7,6 +7,10 @@ import { verifyAccessToken } from "@/lib/jwt-verify";
 const ADMIN_PREFIX = "/admin";
 
 export async function middleware(request: NextRequest) {
+  // Generate nonce untuk CSP
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  
+  // HTTPS redirect di production
   if (
     process.env.NODE_ENV === "production" &&
     request.headers.get("x-forwarded-proto") !== "https"
@@ -20,15 +24,44 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value ?? "";
 
+  let response: NextResponse;
+
   if (pathname.startsWith(ADMIN_PREFIX)) {
-    return handleAdminRoute(request, token);
+    response = await handleAdminRoute(request, token);
+  } else if (pathname === "/login") {
+    response = await handleLoginRoute(request, token);
+  } else {
+    response = NextResponse.next();
   }
 
-  if (pathname === "/login") {
-    return handleLoginRoute(request, token);
-  }
+  // Set security headers dengan CSP yang aman untuk Next.js
+  const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 
+                   process.env.NEXT_PUBLIC_API_BASE_URL || 
+                   "http://localhost:8080";
+  
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""};
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob: https:;
+    font-src 'self' data:;
+    connect-src 'self' ${apiOrigin} https://generativelanguage.googleapis.com https://*.apn.leapcell.dev;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+    ${process.env.NODE_ENV === "production" ? "upgrade-insecure-requests;" : ""}
+  `.replace(/\n/g, "").replace(/\s{2,}/g, " ").trim();
 
-  return NextResponse.next();
+  response.headers.set("Content-Security-Policy", cspHeader);
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  response.headers.set("x-nonce", nonce);
+
+  return response;
 }
 
 export const config = {
