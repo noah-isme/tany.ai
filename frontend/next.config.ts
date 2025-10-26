@@ -7,6 +7,8 @@ const connectSrc = [
   "wss:",
   "http://localhost:4000",
   "http://127.0.0.1:4000",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
 ];
 
 if (dev) {
@@ -20,7 +22,7 @@ if (dev) {
 
 const cspDirectives = [
   "default-src 'self'",
-  "img-src 'self' data:",
+  "img-src 'self' data: https://gyyiuhgcbggxzozasfji.supabase.co",
   `script-src ${scriptSrc.join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   `connect-src ${connectSrc.join(" ")}`,

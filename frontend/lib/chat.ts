@@ -52,10 +52,10 @@ export async function askAssistant(
   question: string,
   chatId?: string | null,
 ): Promise<AssistantReply> {
-  const payload: { question: string; chatId?: string } = { question };
-  if (chatId) {
-    payload.chatId = chatId;
-  }
+  const payload = {
+    question: question,
+    chatId: chatId || undefined
+  };
 
   if (typeof window === "undefined") {
     const { apiFetch } = await import("./api-client");
