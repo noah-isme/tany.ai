@@ -23,7 +23,7 @@
 
 - **Admin CRUD lengkap** – Panel Next.js untuk mengelola profil, skill, layanan, dan proyek dengan aksi drag & drop, toggle, reorder, dan fitur featured yang langsung menginvalasi cache knowledge base melalui API Gin.【F:backend/internal/server/server.go†L30-L109】【F:frontend/components/admin/ServicesManager.tsx†L1-L207】
 - **Chat berbasis knowledge base dinamis** – Endpoint `/api/v1/chat` merakit prompt grounded dari database, menyimpan riwayat percakapan, dan antarmuka chat web langsung menampilkan snippet layanan terbaru.【F:backend/internal/handlers/chat_handler.go†L22-L134】【F:backend/internal/services/prompt/builder.go†L1-L109】【F:frontend/components/chat/ChatWindow.tsx†L1-L196】
-- **Provider AI modular (Gemini)** – Abstraksi `internal/ai` memungkinkan switching antara Gemini dan mock secara environment-based tanpa mengekspos API key ke klien.【F:backend/internal/ai/gemini.go†L1-L146】【F:backend/internal/server/server.go†L1-L148】【F:backend/internal/config/env.go†L1-L210】
+- **Provider AI modular (Gemini & Leapcell)** – Abstraksi `internal/ai` memungkinkan switching antara Gemini, Leapcell, dan mock secara environment-based tanpa mengekspos API key ke klien.【F:backend/internal/ai/gemini.go†L1-L146】【F:backend/internal/ai/leapcell.go†L1-L120】【F:backend/internal/server/server.go†L1-L148】
 - **Upload & Storage terproteksi** – Admin dapat mengunggah avatar/gambar proyek ke Supabase/S3 dengan validasi MIME, sanitasi SVG, rate limit, dan logging rinci.【F:backend/internal/handlers/admin/uploads.go†L21-L214】【F:backend/internal/storage/factory.go†L9-L63】
 - **Autentikasi & otorisasi** – JWT access/refresh token dengan cookie aman, middleware role-guard admin, rate limiter login/upload/chat, serta middleware Next.js untuk proteksi route.【F:backend/internal/auth/jwt.go†L16-L137】【F:frontend/middleware.ts†L1-L60】【F:backend/internal/server/server.go†L58-L108】
 - **Keamanan & observabilitas produksi** – Header keamanan default, Content Security Policy, redirect HTTPS di middleware Next.js, structured JSON logging, dan panic recovery pada API.【F:backend/internal/middleware/security.go†L1-L15】【F:frontend/next.config.ts†L3-L52】【F:backend/internal/middleware/logger.go†L1-L23】【F:backend/internal/middleware/recover.go†L1-L19】
@@ -42,6 +42,95 @@
    # buka http://localhost:3000 untuk frontend & http://localhost:8080 untuk API
    ```
 5. Gunakan kredensial seeding default `admin@example.com / Password123!` untuk masuk ke panel admin.
+
+## 🚢 Deployment ke Server
+
+### Persiapan
+
+1. Siapkan server dengan:
+   - PostgreSQL (≥15)
+   - Node.js (≥20)
+   - Go (≥1.24)
+   - Nginx sebagai reverse proxy
+
+2. Setup environment variables:
+   ```bash
+   # Clone repository
+   git clone https://github.com/tanydotai/tanyai.git
+   cd tanyai
+
+   # Setup backend environment
+   cp backend/.env.example backend/.env
+   # Edit backend/.env sesuai konfigurasi production
+   ```
+
+3. Konfigurasi AI Provider:
+   ```bash
+   # Untuk Google Gemini
+   AI_PROVIDER=gemini
+   GEMINI_MODEL=gemini-2.5-flash  # atau gemini-2.5-pro
+   GOOGLE_GENAI_API_KEY=your-key-here
+
+   # Untuk Leapcell
+   AI_PROVIDER=leapcell
+   LEAPCELL_API_KEY=your-key-here
+   LEAPCELL_PROJECT_ID=your-project-id
+   LEAPCELL_TABLE_ID=your-table-id
+   ```
+
+### Build & Run
+
+1. Frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   npm run start      # Atau gunakan PM2: pm2 start npm --name "tanyai-web" -- start
+   ```
+
+2. Backend:
+   ```bash
+   cd backend
+   make migrate       # Jalankan migrasi database
+   make seed         # Opsional: seed data awal
+   make build        # Build binary
+   ./tmp/main       # Atau gunakan systemd untuk menjalankan service
+   ```
+
+3. Setup Nginx:
+   ```nginx
+   # /etc/nginx/sites-available/tanyai
+   server {
+      listen 80;
+      server_name your-domain.com;
+
+      # Frontend
+      location / {
+          proxy_pass http://localhost:3000;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+      }
+
+      # Backend API
+      location /api {
+          proxy_pass http://localhost:8080;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+      }
+   }
+   ```
+
+4. Enable HTTPS dengan Certbot:
+   ```bash
+   certbot --nginx -d your-domain.com
+   ```
+
+### Monitoring & Maintenance
+
+- Setup logging dengan systemd untuk backend
+- Gunakan PM2 untuk monitoring frontend
+- Backup database secara berkala
+- Monitor rate limits dan penggunaan storage
 
 Panduan lebih rinci tersedia di dokumen berikut:
 

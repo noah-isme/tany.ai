@@ -15,7 +15,8 @@ test:
 	@go test ./...
 
 build:
-	@go build ./...
+	@mkdir -p tmp
+	@go build -o tmp/main ./cmd/api
 
 dev:
 	@./dev.sh
