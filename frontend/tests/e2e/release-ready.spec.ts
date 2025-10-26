@@ -58,7 +58,8 @@ test("release readiness end-to-end flow", async ({ page }) => {
   expect(knowledge.services.map((service) => service.name)).toContain(serviceName);
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: serviceName })).toBeVisible();
+  const servicesSection = page.locator("#services");
+  await expect(servicesSection.getByRole("heading", { name: serviceName })).toBeVisible();
 
   await deleteService(page, token, service.id);
 });
