@@ -23,6 +23,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value ?? "";
+  
+  // Debug logging
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[Middleware] Path: ${pathname}, Has token: ${!!token}`);
+  }
 
   let response: NextResponse;
 
@@ -34,24 +39,44 @@ export async function middleware(request: NextRequest) {
     response = NextResponse.next();
   }
 
-  // Set security headers dengan CSP yang aman untuk Next.js
+  // Set security headers dengan CSP
   const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 
                    process.env.NEXT_PUBLIC_API_BASE_URL || 
                    "http://localhost:8080";
   
-  const cspHeader = `
-    default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""};
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' data: blob: https:;
-    font-src 'self' data:;
-    connect-src 'self' ${apiOrigin} https://generativelanguage.googleapis.com https://*.apn.leapcell.dev;
-    frame-ancestors 'none';
-    base-uri 'self';
-    form-action 'self';
-    object-src 'none';
-    ${process.env.NODE_ENV === "production" ? "upgrade-insecure-requests;" : ""}
-  `.replace(/\n/g, "").replace(/\s{2,}/g, " ").trim();
+  let cspHeader: string;
+  
+  // Longgarkan CSP untuk halaman login (inline scripts needed)
+  if (pathname === "/login" || pathname.startsWith("/admin/login")) {
+    cspHeader = `
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: blob: https:;
+      font-src 'self' data:;
+      connect-src 'self' ${apiOrigin} https://generativelanguage.googleapis.com https://*.apn.leapcell.dev;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+      object-src 'none';
+      ${process.env.NODE_ENV === "production" ? "upgrade-insecure-requests;" : ""}
+    `.replace(/\n/g, "").replace(/\s{2,}/g, " ").trim();
+  } else {
+    // CSP ketat dengan nonce untuk halaman lainnya
+    cspHeader = `
+      default-src 'self';
+      script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""};
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: blob: https:;
+      font-src 'self' data:;
+      connect-src 'self' ${apiOrigin} https://generativelanguage.googleapis.com https://*.apn.leapcell.dev;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+      object-src 'none';
+      ${process.env.NODE_ENV === "production" ? "upgrade-insecure-requests;" : ""}
+    `.replace(/\n/g, "").replace(/\s{2,}/g, " ").trim();
+  }
 
   response.headers.set("Content-Security-Policy", cspHeader);
   response.headers.set("X-Content-Type-Options", "nosniff");

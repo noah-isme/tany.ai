@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { GlobalErrorBoundary } from "@/components/global-error-boundary";
+import { headers } from "next/headers";
 import "./globals.css";
 
 const display = Plus_Jakarta_Sans({
@@ -20,13 +21,19 @@ export const metadata: Metadata = {
     "Prototipe tany.ai yang menggabungkan Next.js dan backend Golang untuk menjawab calon klien secara otomatis.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") || "";
+  
   return (
     <html lang="id">
+      <head>
+        {nonce && <meta name="x-nonce" content={nonce} />}
+      </head>
       <body
         className={`${display.variable} ${body.variable} bg-[var(--bg)] font-sans antialiased text-[var(--text)]`}
       >

@@ -26,9 +26,12 @@ export async function loginAction(formData: FormData): Promise<LoginActionResult
 
   try {
     const response = await loginRequest(parsed.data.email, parsed.data.password);
+    console.log("[LoginAction] Login successful, setting cookie...");
     await setAccessTokenCookie(response.accessToken);
+    console.log("[LoginAction] Cookie set, returning success");
     return { success: true };
   } catch (error) {
+    console.error("[LoginAction] Login failed:", error);
     await clearAccessTokenCookie();
     if (isApiError(error)) {
       const apiError = error as ApiError;

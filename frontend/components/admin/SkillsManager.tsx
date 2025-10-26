@@ -189,19 +189,19 @@ export function SkillsManager({ initialSkills, createSkill, updateSkill, deleteS
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-100/80 dark:bg-slate-900/50">
-            <tr>
-              <th scope="col" className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
-                Skill
-              </th>
-              <th scope="col" className="w-32 px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
-                Aksi
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-100/80 dark:bg-slate-900/50">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                  Skill
+                </th>
+                <th scope="col" className="w-32 px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               <SortableContext items={items} strategy={verticalListSortingStrategy}>
                 {skills.map((skill, index) => (
                   <SkillRow
@@ -217,9 +217,9 @@ export function SkillsManager({ initialSkills, createSkill, updateSkill, deleteS
                   />
                 ))}
               </SortableContext>
-            </DndContext>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </DndContext>
       </div>
     </div>
   );

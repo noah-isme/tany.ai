@@ -41,7 +41,7 @@
    make dev
    # buka http://localhost:3000 untuk frontend & http://localhost:8080 untuk API
    ```
-5. Gunakan kredensial seeding default `admin@example.com / Password123!` untuk masuk ke panel admin.
+5. Gunakan kredensial seeding default `admin@example.com / Admin#12345` untuk masuk ke panel admin.
 
 ## 🚢 Deployment ke Server
 
