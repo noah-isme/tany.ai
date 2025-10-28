@@ -175,7 +175,7 @@ test("admin skill management flow", async ({ page }) => {
     if ((await toggleInput.isChecked()) !== checked) {
       await toggleInput.focus();
       await expect(toggleInput).toBeFocused();
-      await Promise.all([waitForToggleResponse(), page.keyboard.press(" ")]);
+      await Promise.all([waitForToggleResponse(), toggleInput.press(" ")]);
     }
     await expect(toggleInput)[checked ? "toBeChecked" : "not.toBeChecked"]({
       timeout: 15000,
