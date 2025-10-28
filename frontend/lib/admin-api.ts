@@ -1,5 +1,7 @@
 import { apiFetch } from "./api-client";
 import type {
+  AnalyticsEvent,
+  AnalyticsSummary,
   ApiListParams,
   ExternalItem,
   ExternalSource,
@@ -9,6 +11,16 @@ import type {
   Service,
   Skill,
 } from "./types/admin";
+
+export type AnalyticsFilter = {
+  from?: string;
+  to?: string;
+  source?: string;
+  provider?: string;
+  page?: number;
+  limit?: number;
+  type?: string;
+};
 
 export async function fetchProfile(): Promise<Profile> {
   const response = await apiFetch<{ data: Profile }>("/api/admin/profile");
@@ -183,4 +195,52 @@ export async function setExternalItemVisibility(id: string, visible: boolean): P
     },
   );
   return response.data;
+}
+
+function buildAnalyticsQuery(params: AnalyticsFilter = {}): string {
+  const search = new URLSearchParams();
+  if (params.from) {
+    search.set("from", params.from);
+  }
+  if (params.to) {
+    search.set("to", params.to);
+  }
+  if (params.source) {
+    search.set("source", params.source);
+  }
+  if (params.provider) {
+    search.set("provider", params.provider);
+  }
+  if (params.page) {
+    search.set("page", String(params.page));
+  }
+  if (params.limit) {
+    search.set("limit", String(params.limit));
+  }
+  if (params.type) {
+    search.set("type", params.type);
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
+export async function fetchAnalyticsSummary(params: AnalyticsFilter = {}): Promise<AnalyticsSummary> {
+  const query = buildAnalyticsQuery({
+    from: params.from,
+    to: params.to,
+    source: params.source,
+    provider: params.provider,
+  });
+  const response = await apiFetch<{ data: AnalyticsSummary }>(`/api/admin/analytics/summary${query}`);
+  return response.data;
+}
+
+export async function fetchAnalyticsEvents(params: AnalyticsFilter = {}): Promise<PaginatedResponse<AnalyticsEvent>> {
+  const query = buildAnalyticsQuery(params);
+  return apiFetch<PaginatedResponse<AnalyticsEvent>>(`/api/admin/analytics/events${query}`);
+}
+
+export async function fetchAnalyticsLeads(params: AnalyticsFilter = {}): Promise<PaginatedResponse<AnalyticsEvent>> {
+  const query = buildAnalyticsQuery(params);
+  return apiFetch<PaginatedResponse<AnalyticsEvent>>(`/api/admin/analytics/leads${query}`);
 }

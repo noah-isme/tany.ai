@@ -67,7 +67,7 @@ func TestHandleChatStoresHistory(t *testing.T) {
 		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
 	}}
 	history := &historyRecorder{}
-	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"})
+        handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"}, "mock", nil)
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -109,7 +109,7 @@ func TestHandleChatFallsBackOnProviderError(t *testing.T) {
 		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
 	}}
 	history := &historyRecorder{}
-	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{err: errors.New("boom")})
+        handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{err: errors.New("boom")}, "mock", nil)
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -136,7 +136,7 @@ func TestHandleChatFallsBackOnProviderError(t *testing.T) {
 func TestHandleKnowledgeBaseSetsCachingHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	knowledge := &stubKnowledge{base: kb.KnowledgeBase{Profile: kb.Profile{Name: "Tanya"}}}
-	handler := NewChatHandler(knowledge, nil, "mock", &stubProvider{response: "ok"})
+        handler := NewChatHandler(knowledge, nil, "mock", &stubProvider{response: "ok"}, "mock", nil)
 	engine := gin.New()
 	engine.GET("/kb", handler.HandleKnowledgeBase)
 

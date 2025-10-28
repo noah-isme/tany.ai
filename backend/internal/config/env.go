@@ -30,6 +30,7 @@ const (
 	defaultChatRatePer5Min       = 30
 	defaultChatRateBurst         = 30
 	defaultAIModel               = "gemini-1.5-pro"
+	defaultAnalyticsRetention    = 90
 	minJWTSecretLength           = 32
 	defaultExternalHTTPTimeoutMS = 8000
 	defaultExternalRateLimitRPM  = 30
@@ -73,6 +74,8 @@ type Config struct {
 	LeapcellProjectID        string
 	LeapcellTableID          string
 	External                 ExternalConfig
+	EnableAnalytics          bool
+	AnalyticsRetentionDays   int
 }
 
 // StorageDriver enumerates supported object storage providers.
@@ -147,6 +150,8 @@ func Load() (Config, error) {
 		ChatModel:                getEnv("GEMINI_MODEL", defaultAIModel),
 		AIProvider:               strings.ToLower(getEnv("AI_PROVIDER", "mock")),
 		GoogleGenAIKey:           strings.TrimSpace(os.Getenv("GOOGLE_GENAI_API_KEY")),
+		EnableAnalytics:          false,
+		AnalyticsRetentionDays:   defaultAnalyticsRetention,
 		External: ExternalConfig{
 			HTTPTimeout:     time.Duration(defaultExternalHTTPTimeoutMS) * time.Millisecond,
 			DomainAllowlist: append([]string{}, defaultExternalAllowlist...),
@@ -196,6 +201,24 @@ func Load() (Config, error) {
 			return Config{}, errors.New("ACCESS_TOKEN_TTL_MIN must be greater than zero")
 		}
 		cfg.AccessTokenTTL = time.Duration(parsed) * time.Minute
+	}
+
+	if v := os.Getenv("ENABLE_ANALYTICS"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid ENABLE_ANALYTICS: %w", err)
+		}
+		cfg.EnableAnalytics = parsed
+	}
+
+	if v := os.Getenv("ANALYTICS_RETENTION_DAYS"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid ANALYTICS_RETENTION_DAYS: %w", err)
+		}
+		if parsed > 0 {
+			cfg.AnalyticsRetentionDays = parsed
+		}
 	}
 
 	if v := os.Getenv("REFRESH_TOKEN_TTL_DAY"); v != "" {
