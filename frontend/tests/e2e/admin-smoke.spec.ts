@@ -106,16 +106,30 @@ test("admin skill management flow", async ({ page }) => {
     timeout: 15000,
   });
 
-  const firstToggle = page
-    .locator("tbody tr")
-    .first()
-    .getByRole("checkbox", { name: /Atur visibilitas/i });
-  const initialState = await firstToggle.isChecked();
-  await firstToggle.click();
-  await expect(firstToggle).toHaveJSProperty("checked", !initialState);
+  const externalRows = page
+    .locator("section", { hasText: "Konten yang Tersedia" })
+    .locator("tbody tr");
 
-  await firstToggle.click();
-  await expect(firstToggle).toHaveJSProperty("checked", initialState);
+  await expect
+    .poll(async () => externalRows.count(), { timeout: 15000 })
+    .toBeGreaterThan(0);
+
+  const firstRow = externalRows.first();
+  await expect(firstRow).toBeVisible({ timeout: 15000 });
+
+  const toggleLabel = firstRow.locator(
+    'label:has(input[aria-label^="Atur visibilitas"])',
+  );
+  await expect(toggleLabel).toBeVisible({ timeout: 15000 });
+
+  const toggleInput = toggleLabel.locator('input[type="checkbox"]');
+  const initialState = await toggleInput.isChecked();
+
+  await toggleLabel.click();
+  await expect(toggleInput).toHaveJSProperty("checked", !initialState);
+
+  await toggleLabel.click();
+  await expect(toggleInput).toHaveJSProperty("checked", initialState);
 
   await page.getByLabel("Keluar").click();
 });
