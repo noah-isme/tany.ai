@@ -3,6 +3,7 @@ package prompt
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tanydotai/tanyai/backend/internal/services/kb"
 )
@@ -19,6 +20,9 @@ func sampleBase() kb.KnowledgeBase {
 		Projects: []kb.Project{
 			{Title: "Project A", Description: "Desc", TechStack: []string{"Go", "React"}, IsFeatured: true, Order: 1},
 			{Title: "Project B", Description: "Another", TechStack: []string{"Next.js"}, Order: 2},
+		},
+		Posts: []kb.Post{
+			{Title: "New Launch", Summary: "Diluncurkan fitur baru", URL: "https://example.com/post", Source: "noahis.me", PublishedAt: time.Now()},
 		},
 	}
 }
@@ -37,6 +41,9 @@ func TestBuildPromptIncludesContextAndQuestion(t *testing.T) {
 	if strings.Contains(prompt, "Extra") {
 		t.Fatalf("prompt should limit number of services")
 	}
+	if !strings.Contains(prompt, "Update terbaru") {
+		t.Fatalf("prompt should include external updates")
+	}
 }
 
 func TestSummarizeForHumanReferencesFeaturedProject(t *testing.T) {
@@ -46,5 +53,8 @@ func TestSummarizeForHumanReferencesFeaturedProject(t *testing.T) {
 	}
 	if !strings.Contains(response, "Build") {
 		t.Fatalf("expected service mention in summary")
+	}
+	if !strings.Contains(response, "New Launch") {
+		t.Fatalf("expected latest post mention in summary")
 	}
 }

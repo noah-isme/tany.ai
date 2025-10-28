@@ -45,10 +45,21 @@ type Project struct {
 	Order         int      `json:"order"`
 }
 
+// Post highlights external articles or updates.
+type Post struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Summary     string    `json:"summary,omitempty"`
+	URL         string    `json:"url"`
+	Source      string    `json:"source"`
+	PublishedAt time.Time `json:"publishedAt,omitempty"`
+}
+
 // KnowledgeBase aggregates all public knowledge powering the assistant.
 type KnowledgeBase struct {
 	Profile  Profile   `json:"profile"`
 	Skills   []Skill   `json:"skills"`
 	Services []Service `json:"services"`
 	Projects []Project `json:"projects"`
+	Posts    []Post    `json:"posts,omitempty"`
 }

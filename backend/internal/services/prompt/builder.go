@@ -13,6 +13,7 @@ import (
 const (
 	defaultMaxServicesInPrompt = 3
 	defaultMaxProjectsInPrompt = 3
+	defaultMaxPostsInPrompt    = 2
 )
 
 func maxFromEnv(key string, fallback int) int {
@@ -183,6 +184,40 @@ func BuildPrompt(base kb.KnowledgeBase, question string) string {
 		builder.WriteString("\n")
 	}
 
+	posts := topPosts(base.Posts, defaultMaxPostsInPrompt)
+	if len(posts) > 0 {
+		builder.WriteString("Update terbaru:\n")
+		for _, post := range posts {
+			line := fmt.Sprintf("- %s", post.Title)
+			details := make([]string, 0, 4)
+			if post.Source != "" {
+				details = append(details, fmt.Sprintf("Sumber %s", post.Source))
+			}
+			if !post.PublishedAt.IsZero() {
+				details = append(details, post.PublishedAt.Format("2006-01-02"))
+			}
+			if post.Summary != "" {
+				summary := post.Summary
+				if len(summary) > 120 {
+					summary = summary[:117] + "..."
+				}
+				details = append(details, summary)
+			}
+			if post.URL != "" {
+				details = append(details, fmt.Sprintf("URL: %s", post.URL))
+			}
+			if len(details) > 0 {
+				line += " — " + strings.Join(details, "; ")
+			}
+			if len(line) > 200 {
+				line = line[:197] + "..."
+			}
+			builder.WriteString(line)
+			builder.WriteString("\n")
+		}
+		builder.WriteString("\n")
+	}
+
 	// Add final instructions
 	builder.WriteString("\nInstruksi: Jawab dengan ringkas dan ramah dalam bahasa Indonesia. Gunakan hanya informasi yang tersedia di atas.\n\n")
 	builder.WriteString("Berikan jawaban untuk: ")
@@ -287,6 +322,24 @@ func topProjects(projects []kb.Project, limit int) []kb.Project {
 	return sorted
 }
 
+func topPosts(posts []kb.Post, limit int) []kb.Post {
+	if len(posts) == 0 || limit <= 0 {
+		return nil
+	}
+	sorted := make([]kb.Post, len(posts))
+	copy(sorted, posts)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].PublishedAt.Equal(sorted[j].PublishedAt) {
+			return sorted[i].Title < sorted[j].Title
+		}
+		return sorted[i].PublishedAt.After(sorted[j].PublishedAt)
+	})
+	if len(sorted) > limit {
+		sorted = sorted[:limit]
+	}
+	return sorted
+}
+
 // SummarizeForHuman returns a deterministic answer if the provider is unavailable.
 func SummarizeForHuman(question string, base kb.KnowledgeBase) string {
 	services := topServices(base.Services, 3)
@@ -299,6 +352,12 @@ func SummarizeForHuman(question string, base kb.KnowledgeBase) string {
 	featured := ""
 	if len(projects) > 0 {
 		featured = projects[0].Title
+	}
+
+	posts := topPosts(base.Posts, 1)
+	latest := ""
+	if len(posts) > 0 {
+		latest = posts[0].Title
 	}
 
 	contact := ""
@@ -324,6 +383,9 @@ func SummarizeForHuman(question string, base kb.KnowledgeBase) string {
 	}
 	if featured != "" {
 		builder.WriteString(fmt.Sprintf("Contoh proyek terbaru: %s. ", featured))
+	}
+	if latest != "" {
+		builder.WriteString(fmt.Sprintf("Info terbaru: %s. ", latest))
 	}
 	if contact != "" {
 		builder.WriteString(contact)

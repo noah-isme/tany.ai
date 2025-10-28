@@ -97,5 +97,98 @@ test("admin skill management flow", async ({ page }) => {
   await page.reload();
   await expect(page.getByText(projectTitle)).not.toBeVisible();
 
+  await page.route("**/api/admin/external/items/*/visibility", async (route) => {
+    if (route.request().method() === "PATCH") {
+      let visible = false;
+      try {
+        const body = route.request().postDataJSON?.();
+        if (body && typeof body.visible === "boolean") {
+          visible = body.visible;
+        }
+      } catch {
+        // ignore JSON parsing errors and fall back to false
+      }
+
+      const url = new URL(route.request().url());
+      const segments = url.pathname.split("/").filter(Boolean);
+      const itemId = segments.at(-2) ?? "external-item";
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: itemId,
+            sourceName: "noahis.me",
+            kind: "project",
+            title: "Mock External Item",
+            summary: "Konten mock Playwright",
+            url: "https://www.noahis.me/mock-item",
+            visible,
+            publishedAt: new Date().toISOString(),
+            metadata: {},
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.goto("/admin/integrations");
+  await expect(page.getByRole("heading", { name: "Integrasi Konten Eksternal" })).toBeVisible();
+  const syncButton = page.getByRole("button", { name: /Sinkron sekarang/i }).first();
+  await syncButton.click();
+  await expect(page.getByRole("status")).toContainText(/Sinkronisasi mock berhasil/i, {
+    timeout: 15000,
+  });
+
+  const externalRows = page
+    .locator("section", { hasText: "Konten yang Tersedia" })
+    .locator("tbody tr");
+
+  await expect
+    .poll(async () => externalRows.count(), { timeout: 15000 })
+    .toBeGreaterThan(0);
+
+  const firstRow = externalRows.first();
+  await expect(firstRow).toBeVisible({ timeout: 15000 });
+
+  const toggleInput = firstRow.getByRole("checkbox", { name: /^Atur visibilitas/i });
+  await expect(toggleInput).toBeVisible({ timeout: 15000 });
+
+  const initialState = await toggleInput.isChecked();
+
+  const waitForToggleResponse = () =>
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.ok() &&
+        /\/api\/admin\/external\/items\/[^/]+\/visibility$/.test(
+          new URL(response.url()).pathname,
+        ),
+      { timeout: 15000 },
+    );
+
+  const ensureState = async (checked: boolean) => {
+    if ((await toggleInput.isChecked()) !== checked) {
+      await toggleInput.focus();
+      await expect(toggleInput).toBeFocused();
+      await Promise.all([waitForToggleResponse(), toggleInput.press(" ")]);
+    }
+    await expect(toggleInput)[checked ? "toBeChecked" : "not.toBeChecked"]({
+      timeout: 15000,
+    });
+  };
+
+  if (initialState) {
+    await ensureState(false);
+    await ensureState(true);
+  } else {
+    await ensureState(true);
+    await ensureState(false);
+  }
+
   await page.getByLabel("Keluar").click();
 });

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,26 +11,28 @@ import (
 )
 
 const (
-	defaultAppEnv               = "local"
-	defaultMaxOpenConns         = 10
-	defaultMaxIdleConns         = 5
-	defaultConnMaxLifetime      = time.Hour
-	defaultAccessTTLMin         = 15
-	defaultRefreshTTLDays       = 7
-	defaultRefreshCookie        = "__Host_refresh"
-	defaultLoginPerMin          = 5
-	defaultLoginBurst           = 10
-	defaultStorageDriver        = string(StorageDriverSupabase)
-	defaultUploadMaxMB          = 5
-	defaultUploadRatePerMin     = 10
-	defaultUploadRateBurst      = 10
-	defaultKBCacheTTLSeconds    = 60
-	defaultKnowledgeRatePer5Min = 30
-	defaultKnowledgeRateBurst   = 30
-	defaultChatRatePer5Min      = 30
-	defaultChatRateBurst        = 30
-	defaultAIModel              = "gemini-1.5-pro"
-	minJWTSecretLength          = 32
+	defaultAppEnv                = "local"
+	defaultMaxOpenConns          = 10
+	defaultMaxIdleConns          = 5
+	defaultConnMaxLifetime       = time.Hour
+	defaultAccessTTLMin          = 15
+	defaultRefreshTTLDays        = 7
+	defaultRefreshCookie         = "__Host_refresh"
+	defaultLoginPerMin           = 5
+	defaultLoginBurst            = 10
+	defaultStorageDriver         = string(StorageDriverSupabase)
+	defaultUploadMaxMB           = 5
+	defaultUploadRatePerMin      = 10
+	defaultUploadRateBurst       = 10
+	defaultKBCacheTTLSeconds     = 60
+	defaultKnowledgeRatePer5Min  = 30
+	defaultKnowledgeRateBurst    = 30
+	defaultChatRatePer5Min       = 30
+	defaultChatRateBurst         = 30
+	defaultAIModel               = "gemini-1.5-pro"
+	minJWTSecretLength           = 32
+	defaultExternalHTTPTimeoutMS = 8000
+	defaultExternalRateLimitRPM  = 30
 )
 
 var defaultAllowedMIMEs = []string{
@@ -38,6 +41,8 @@ var defaultAllowedMIMEs = []string{
 	"image/webp",
 	"image/svg+xml",
 }
+
+var defaultExternalAllowlist = []string{"noahis.me", "www.noahis.me", "noahisme.vercel.app"}
 
 // Config contains runtime configuration loaded from environment variables.
 type Config struct {
@@ -67,6 +72,7 @@ type Config struct {
 	LeapcellAPIKey           string
 	LeapcellProjectID        string
 	LeapcellTableID          string
+	External                 ExternalConfig
 }
 
 // StorageDriver enumerates supported object storage providers.
@@ -141,6 +147,11 @@ func Load() (Config, error) {
 		ChatModel:                getEnv("GEMINI_MODEL", defaultAIModel),
 		AIProvider:               strings.ToLower(getEnv("AI_PROVIDER", "mock")),
 		GoogleGenAIKey:           strings.TrimSpace(os.Getenv("GOOGLE_GENAI_API_KEY")),
+		External: ExternalConfig{
+			HTTPTimeout:     time.Duration(defaultExternalHTTPTimeoutMS) * time.Millisecond,
+			DomainAllowlist: append([]string{}, defaultExternalAllowlist...),
+			RateLimitRPM:    defaultExternalRateLimitRPM,
+		},
 	}
 
 	if cfg.PostgresURL == "" {
@@ -341,6 +352,46 @@ func Load() (Config, error) {
 		cfg.ChatModel = v
 	}
 
+	timeoutMS := defaultExternalHTTPTimeoutMS
+	if v := os.Getenv("HTTP_TIMEOUT_MS"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HTTP_TIMEOUT_MS: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("HTTP_TIMEOUT_MS must be greater than zero")
+		}
+		timeoutMS = parsed
+	}
+	cfg.External.HTTPTimeout = time.Duration(timeoutMS) * time.Millisecond
+
+	if v := os.Getenv("EXTERNAL_RATE_LIMIT_RPM"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid EXTERNAL_RATE_LIMIT_RPM: %w", err)
+		}
+		if parsed <= 0 {
+			return Config{}, errors.New("EXTERNAL_RATE_LIMIT_RPM must be greater than zero")
+		}
+		cfg.External.RateLimitRPM = parsed
+	}
+
+	if v := os.Getenv("EXTERNAL_DOMAIN_ALLOWLIST"); strings.TrimSpace(v) != "" {
+		cfg.External.DomainAllowlist = splitAndTrim(v)
+	}
+
+	defaults := defaultExternalSources()
+	if raw := strings.TrimSpace(os.Getenv("EXTERNAL_SOURCES_DEFAULT")); raw != "" {
+		var seeds []ExternalSourceSeed
+		if err := json.Unmarshal([]byte(raw), &seeds); err != nil {
+			return Config{}, fmt.Errorf("invalid EXTERNAL_SOURCES_DEFAULT: %w", err)
+		}
+		if len(seeds) > 0 {
+			defaults = seeds
+		}
+	}
+	cfg.External.SourcesDefault = defaults
+
 	if err := populateStorageConfig(&cfg); err != nil {
 		return Config{}, err
 	}
@@ -439,4 +490,43 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// ExternalConfig holds configuration for ingesting external knowledge sources.
+type ExternalConfig struct {
+	SourcesDefault  []ExternalSourceSeed
+	HTTPTimeout     time.Duration
+	DomainAllowlist []string
+	RateLimitRPM    int
+}
+
+// ExternalSourceSeed represents default source definitions from configuration.
+type ExternalSourceSeed struct {
+	Name       string `json:"name"`
+	BaseURL    string `json:"base_url"`
+	SourceType string `json:"type"`
+	Enabled    bool   `json:"enabled"`
+}
+
+func defaultExternalSources() []ExternalSourceSeed {
+	return []ExternalSourceSeed{
+		{
+			Name:       "noahis.me",
+			BaseURL:    "https://www.noahis.me",
+			SourceType: "auto",
+			Enabled:    true,
+		},
+	}
+}
+
+func splitAndTrim(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

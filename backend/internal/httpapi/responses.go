@@ -12,6 +12,7 @@ const (
 	ErrorCodeForbidden       ErrorCode = "FORBIDDEN"
 	ErrorCodeTooManyRequests ErrorCode = "TOO_MANY_REQUESTS"
 	ErrorCodeInternal        ErrorCode = "INTERNAL"
+	ErrorCodeExternal        ErrorCode = "EXTERNAL_ERROR"
 )
 
 // ErrorBody represents the standard error payload envelope.

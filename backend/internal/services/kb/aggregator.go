@@ -7,13 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/tanydotai/tanyai/backend/internal/models"
 )
 
 type cacheEntry struct {
@@ -103,7 +106,15 @@ func (a *Aggregator) load(ctx context.Context) (KnowledgeBase, error) {
 		return KnowledgeBase{}, err
 	}
 
-	return KnowledgeBase{Profile: profile, Skills: skills, Services: services, Projects: projects}, nil
+	extServices, extProjects, posts, err := a.fetchExternalItems(ctx)
+	if err != nil {
+		return KnowledgeBase{}, err
+	}
+
+	services = append(services, extServices...)
+	projects = append(projects, extProjects...)
+
+	return KnowledgeBase{Profile: profile, Skills: skills, Services: services, Projects: projects, Posts: posts}, nil
 }
 
 func (a *Aggregator) fetchProfile(ctx context.Context) (Profile, error) {
@@ -223,6 +234,130 @@ func (a *Aggregator) fetchProjects(ctx context.Context) ([]Project, error) {
 		})
 	}
 	return projects, nil
+}
+
+func (a *Aggregator) fetchExternalItems(ctx context.Context) ([]Service, []Project, []Post, error) {
+	const query = `SELECT i.id, i.kind, i.title, i.url, i.summary, i.content, i.metadata, i.published_at, i.updated_at, s.name AS source_name
+FROM external_items i
+JOIN external_sources s ON s.id = i.source_id
+WHERE i.visible = TRUE AND s.enabled = TRUE
+ORDER BY COALESCE(i.published_at, i.updated_at) DESC`
+
+	var rows []struct {
+		ID          uuid.UUID      `db:"id"`
+		Kind        string         `db:"kind"`
+		Title       string         `db:"title"`
+		URL         string         `db:"url"`
+		Summary     sql.NullString `db:"summary"`
+		Content     sql.NullString `db:"content"`
+		Metadata    models.JSONB   `db:"metadata"`
+		PublishedAt sql.NullTime   `db:"published_at"`
+		UpdatedAt   time.Time      `db:"updated_at"`
+		SourceName  string         `db:"source_name"`
+	}
+
+	if err := a.db.SelectContext(ctx, &rows, query); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, nil
+		}
+		return nil, nil, nil, err
+	}
+
+	services := make([]Service, 0)
+	projects := make([]Project, 0)
+	posts := make([]Post, 0)
+
+	serviceOrder := 1000
+	projectOrder := 1000
+
+	for _, row := range rows {
+		summary := strings.TrimSpace(row.Summary.String)
+		content := strings.TrimSpace(row.Content.String)
+		description := summary
+		if description == "" {
+			description = content
+		}
+		switch strings.ToLower(strings.TrimSpace(row.Kind)) {
+		case "service":
+			services = append(services, Service{
+				ID:          row.ID.String(),
+				Name:        row.Title,
+				Description: description,
+				Order:       serviceOrder,
+			})
+			serviceOrder++
+		case "project":
+			projects = append(projects, Project{
+				ID:          row.ID.String(),
+				Title:       row.Title,
+				Description: description,
+				TechStack:   extractStringSlice(row.Metadata, "techStack"),
+				ProjectURL:  row.URL,
+				IsFeatured:  false,
+				Order:       projectOrder,
+			})
+			projectOrder++
+		default:
+			published := time.Time{}
+			if row.PublishedAt.Valid {
+				published = row.PublishedAt.Time
+			}
+			posts = append(posts, Post{
+				ID:          row.ID.String(),
+				Title:       row.Title,
+				Summary:     description,
+				URL:         row.URL,
+				Source:      row.SourceName,
+				PublishedAt: published,
+			})
+		}
+	}
+
+	return services, projects, posts, nil
+}
+
+func extractStringSlice(meta models.JSONB, key string) []string {
+	if meta == nil {
+		return nil
+	}
+	raw, ok := meta[key]
+	if !ok {
+		return nil
+	}
+	switch value := raw.(type) {
+	case []any:
+		result := make([]string, 0, len(value))
+		for _, item := range value {
+			if str := strings.TrimSpace(stringFromAny(item)); str != "" {
+				result = append(result, str)
+			}
+		}
+		return result
+	case []string:
+		result := make([]string, 0, len(value))
+		for _, item := range value {
+			if str := strings.TrimSpace(item); str != "" {
+				result = append(result, str)
+			}
+		}
+		return result
+	case string:
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return []string{trimmed}
+		}
+	}
+	return nil
+}
+
+func stringFromAny(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return ""
+	}
 }
 
 func computeETag(data KnowledgeBase) (string, error) {

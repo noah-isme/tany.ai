@@ -1,5 +1,14 @@
 import { apiFetch } from "./api-client";
-import type { Profile, Skill, Service, Project, PaginatedResponse } from "./types/admin";
+import type {
+  ApiListParams,
+  ExternalItem,
+  ExternalSource,
+  PaginatedResponse,
+  Profile,
+  Project,
+  Service,
+  Skill,
+} from "./types/admin";
 
 export async function fetchProfile(): Promise<Profile> {
   const response = await apiFetch<{ data: Profile }>("/api/admin/profile");
@@ -121,5 +130,57 @@ export async function featureProject(id: string, isFeatured: boolean): Promise<P
     method: "PATCH",
     body: { is_featured: isFeatured },
   });
+  return response.data;
+}
+
+export async function fetchExternalSources(): Promise<PaginatedResponse<ExternalSource>> {
+  return apiFetch<PaginatedResponse<ExternalSource>>(
+    "/api/admin/external/sources?limit=50&sort=name&dir=asc",
+  );
+}
+
+export async function syncExternalSource(
+  id: string,
+): Promise<{ itemsUpserted: number; message?: string; etag?: string; lastModified?: string }> {
+  const response = await apiFetch<{ data: { itemsUpserted: number; message?: string; etag?: string; lastModified?: string } }>(
+    `/api/admin/external/sources/${id}/sync`,
+    { method: "POST" },
+  );
+  return response.data;
+}
+
+export async function fetchExternalItems(
+  params: Pick<ApiListParams, "sort" | "dir"> & { kind?: string; visible?: boolean } = {},
+): Promise<PaginatedResponse<ExternalItem>> {
+  const search = new URLSearchParams({ limit: "100" });
+  if (params.sort) {
+    search.set("sort", params.sort);
+  } else {
+    search.set("sort", "published_at");
+  }
+  if (params.dir) {
+    search.set("dir", params.dir);
+  } else {
+    search.set("dir", "desc");
+  }
+  if (params.kind) {
+    search.set("kind", params.kind);
+  }
+  if (typeof params.visible === "boolean") {
+    search.set("visible", String(params.visible));
+  }
+  return apiFetch<PaginatedResponse<ExternalItem>>(
+    `/api/admin/external/items?${search.toString()}`,
+  );
+}
+
+export async function setExternalItemVisibility(id: string, visible: boolean): Promise<ExternalItem> {
+  const response = await apiFetch<{ data: ExternalItem }>(
+    `/api/admin/external/items/${id}/visibility`,
+    {
+      method: "PATCH",
+      body: { visible },
+    },
+  );
   return response.data;
 }
