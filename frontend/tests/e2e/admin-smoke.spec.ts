@@ -161,17 +161,20 @@ test("admin skill management flow", async ({ page }) => {
   const initialState = await toggleInput.isChecked();
 
   const waitForToggleResponse = () =>
-    page.waitForResponse((response) => {
-      if (response.request().method() !== "PATCH") {
-        return false;
-      }
-      const url = new URL(response.url());
-      return /\/api\/admin\/external\/items\/.+\/visibility$/.test(url.pathname) && response.ok();
-    });
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.ok() &&
+        /\/api\/admin\/external\/items\/[^/]+\/visibility$/.test(
+          new URL(response.url()).pathname,
+        ),
+      { timeout: 15000 },
+    );
 
   const ensureState = async (checked: boolean) => {
     if ((await toggleInput.isChecked()) !== checked) {
       await toggleInput.focus();
+      await expect(toggleInput).toBeFocused();
       await Promise.all([waitForToggleResponse(), page.keyboard.press(" ")]);
     }
     await expect(toggleInput)[checked ? "toBeChecked" : "not.toBeChecked"]({
