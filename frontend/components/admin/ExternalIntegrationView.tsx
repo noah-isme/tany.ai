@@ -99,6 +99,8 @@ export function ExternalIntegrationView({
 
       {status ? (
         <p
+          role="status"
+          aria-live="polite"
           className={clsx(
             "rounded-lg border px-4 py-3 text-sm",
             status.type === "success"

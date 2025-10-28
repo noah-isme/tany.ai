@@ -100,8 +100,19 @@ test("admin skill management flow", async ({ page }) => {
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Integrasi Konten Eksternal" })).toBeVisible();
   const syncButton = page.getByRole("button", { name: /Sinkron sekarang/i }).first();
-  await syncButton.click();
-  await expect(page.getByText(/Sinkronisasi mock berhasil/)).toBeVisible();
+  await Promise.all([
+    page.waitForResponse((response) =>
+      response
+        .url()
+        .includes("/api/admin/external/sources") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    ),
+    syncButton.click(),
+  ]);
+  await expect(page.getByRole("status")).toContainText(/Sinkronisasi mock berhasil/i, {
+    timeout: 15000,
+  });
 
   const firstToggle = page
     .locator("tbody tr")
