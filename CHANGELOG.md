@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.2.0] - 2025-01-15
+### Added
+- Modul analytics real-time dengan tabel baru `analytics_events` dan `analytics_summary` untuk menyimpan event chat dan ringkasan harian.【F:backend/migrations/202501010000_add_analytics_tables.up.sql†L1-L40】
+- Service & repository analytics di backend termasuk endpoint admin `/api/admin/analytics/{summary,events,leads}` dan integrasi otomatis dari `ChatHandler`.【F:backend/internal/analytics/service.go†L1-L188】【F:backend/internal/server/server.go†L36-L126】
+- Dashboard Admin → Analytics menggunakan Next.js 16 + Recharts lengkap dengan filter rentang waktu, auto-refresh, dan widget metrik utama.【F:frontend/components/admin/analytics/AnalyticsDashboard.tsx†L1-L399】【F:frontend/app/admin/analytics/page.tsx†L1-L24】
+- Dokumentasi operator baru `docs/ANALYTICS_GUIDE.md` mencakup arsitektur, konfigurasi environment, dan panduan pengujian modul analytics.【F:docs/ANALYTICS_GUIDE.md†L1-L89】
+
+### Changed
+- Konfigurasi environment menambahkan dukungan `ENABLE_ANALYTICS` dan `ANALYTICS_RETENTION_DAYS` untuk mengontrol retensi serta aktivasi modul analytics.【F:backend/internal/config/env.go†L24-L205】
+
 ## [v1.1.0] - 2024-12-12
 ### Added
 - Integrasi penuh dengan noahis.me mencakup CLI `make external-sync`, UI admin, dan workflow terjadwal untuk sinkronisasi konten eksternal.【F:backend/cmd/external-sync/main.go†L73-L170】【F:frontend/components/admin/ExternalIntegrationView.tsx†L1-L200】【F:.github/workflows/external-sync.yml†L1-L83】

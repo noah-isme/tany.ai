@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/tanydotai/tanyai/backend/internal/ai"
+	"github.com/tanydotai/tanyai/backend/internal/analytics"
 	"github.com/tanydotai/tanyai/backend/internal/auth"
 	"github.com/tanydotai/tanyai/backend/internal/config"
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
@@ -39,9 +40,13 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine.Use(middleware.RequestLogger(), middleware.RecoverWithLog(), middleware.SecurityHeaders(), middleware.CORS())
 
 	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
+	analyticsRepo := analytics.NewRepository(database)
+	analyticsService := analytics.NewService(analyticsRepo, cfg.AnalyticsRetentionDays, cfg.EnableAnalytics)
+	analyticsHandler := analytics.NewHandler(analyticsService)
+
 	chatHistoryRepo := repos.NewChatHistoryRepository(database)
 	provider := resolveProvider(cfg)
-	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider)
+	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider, cfg.AIProvider, analyticsService)
 	healthHandler := handlers.NewHealthHandler(database)
 
 	externalSourceRepo := repos.NewExternalSourceRepository(database)
@@ -122,6 +127,13 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	{
 		adminGroup.GET("/profile", profileHandler.Get)
 		adminGroup.PUT("/profile", profileHandler.Put)
+
+		analyticsGroup := adminGroup.Group("/analytics")
+		{
+			analyticsGroup.GET("/summary", analyticsHandler.Summary)
+			analyticsGroup.GET("/events", analyticsHandler.Events)
+			analyticsGroup.GET("/leads", analyticsHandler.Leads)
+		}
 
 		skills := adminGroup.Group("/skills")
 		{

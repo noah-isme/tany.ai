@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tanydotai/tanyai/backend/internal/ai"
+	"github.com/tanydotai/tanyai/backend/internal/analytics"
 	"github.com/tanydotai/tanyai/backend/internal/httpapi"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
@@ -26,12 +28,18 @@ type KnowledgeService interface {
 	CacheTTL() time.Duration
 }
 
+type analyticsRecorder interface {
+	RecordChat(ctx context.Context, input analytics.RecordChatInput) error
+}
+
 // ChatHandler exposes HTTP handlers for chat and knowledge base endpoints.
 type ChatHandler struct {
-	knowledge KnowledgeService
-	history   repos.ChatHistoryRepository
-	modelName string
-	provider  ai.Provider
+	knowledge    KnowledgeService
+	history      repos.ChatHistoryRepository
+	modelName    string
+	provider     ai.Provider
+	providerName string
+	analytics    analyticsRecorder
 }
 
 // ChatRequest represents the incoming chat payload.
@@ -49,8 +57,15 @@ type ChatResponse struct {
 }
 
 // NewChatHandler constructs a ChatHandler with the provided dependencies.
-func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string, provider ai.Provider) *ChatHandler {
-	return &ChatHandler{knowledge: knowledge, history: history, modelName: modelName, provider: provider}
+func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string, provider ai.Provider, providerName string, analytics analyticsRecorder) *ChatHandler {
+	return &ChatHandler{
+		knowledge:    knowledge,
+		history:      history,
+		modelName:    modelName,
+		provider:     provider,
+		providerName: providerName,
+		analytics:    analytics,
+	}
 }
 
 // HandleChat processes the chat question and stores the interaction history.
@@ -86,6 +101,7 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 	c.Set("chat_id", chatID.String())
 	c.Set("prompt_length", promptLength)
 
+	started := time.Now()
 	var providerErr error
 	if h.provider != nil {
 		resp, err := h.provider.Generate(c.Request.Context(), ai.Request{
@@ -109,6 +125,8 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 		slog.Warn("chat_generation_failed", "error", providerErr, "chat_id", chatID.String())
 	}
 
+	latency := time.Since(started)
+
 	record := models.ChatHistory{
 		ChatID:       chatID,
 		UserInput:    payload.Question,
@@ -117,7 +135,7 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 		PromptHash:   hex.EncodeToString(promptHash[:]),
 		PromptLength: promptLength,
 		ResponseText: answer,
-		LatencyMS:    0,
+		LatencyMS:    int(latency.Milliseconds()),
 		CreatedAt:    time.Now(),
 	}
 
@@ -125,6 +143,29 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 		if _, err := h.history.Create(c.Request.Context(), record); err != nil {
 			httpapi.RespondError(c, http.StatusInternalServerError, httpapi.ErrorCodeInternal, "failed to store chat history", nil)
 			return
+		}
+	}
+
+	if h.analytics != nil {
+		metadata := models.JSONB{
+			"cache_hit":       cacheHit,
+			"question_length": len([]rune(payload.Question)),
+			"ip":              c.ClientIP(),
+		}
+		if payload.ChatID != "" {
+			metadata["session_chat_id"] = payload.ChatID
+		}
+		if err := h.analytics.RecordChat(c.Request.Context(), analytics.RecordChatInput{
+			Timestamp: time.Now(),
+			Source:    c.GetHeader("X-Chat-Source"),
+			Provider:  h.providerName,
+			Duration:  latency,
+			Success:   providerErr == nil,
+			UserAgent: c.Request.UserAgent(),
+			ChatID:    chatID,
+			Metadata:  metadata,
+		}); err != nil && !errors.Is(err, analytics.ErrAnalyticsDisabled) {
+			slog.Warn("analytics_record_failed", "error", err, "chat_id", chatID.String())
 		}
 	}
 

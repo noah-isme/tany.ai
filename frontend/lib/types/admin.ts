@@ -78,3 +78,41 @@ export type ApiListParams = {
   sort?: string;
   dir?: "asc" | "desc";
 };
+
+export type AnalyticsProviderSnapshot = {
+  totalChats: number;
+  avgResponseTime: number;
+  successRate: number;
+};
+
+export type AnalyticsDailyPoint = {
+  date: string;
+  totalChats: number;
+  avgResponseTime: number;
+  successRate: number;
+  conversions: number;
+};
+
+export type AnalyticsSummary = {
+  rangeStart: string;
+  rangeEnd: string;
+  totalChats: number;
+  avgResponseTime: number;
+  successRate: number;
+  uniqueUsers: number;
+  conversions: number;
+  providerBreakdown: Record<string, AnalyticsProviderSnapshot>;
+  daily: AnalyticsDailyPoint[];
+};
+
+export type AnalyticsEvent = {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  source: string;
+  provider: string;
+  durationMs: number;
+  success: boolean;
+  userAgent?: string;
+  metadata: Record<string, unknown>;
+};

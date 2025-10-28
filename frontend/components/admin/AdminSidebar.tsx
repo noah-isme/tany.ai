@@ -23,7 +23,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/services", label: "Layanan", icon: BriefcaseBusiness },
   { href: "/admin/projects", label: "Proyek", icon: FolderKanban },
   { href: "/admin/integrations", label: "Integrasi", icon: Plug },
-  { href: "/admin/stats", label: "Statistik", icon: BarChart3 },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
