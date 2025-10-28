@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test login endpoint
-API_URL="${1:-http://localhost:8080}"
+API_URL="${1:-https://tanyai-noah-isme4297-g5fy8rvj.apn.leapcell.dev}"
 
 echo "Testing login endpoint at: $API_URL/api/auth/login"
 echo ""
