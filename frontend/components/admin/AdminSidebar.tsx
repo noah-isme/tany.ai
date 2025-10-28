@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Brain,
   BriefcaseBusiness,
   FolderKanban,
   LayoutDashboard,
@@ -23,6 +24,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/services", label: "Layanan", icon: BriefcaseBusiness },
   { href: "/admin/projects", label: "Proyek", icon: FolderKanban },
   { href: "/admin/integrations", label: "Integrasi", icon: Plug },
+  { href: "/admin/personalization", label: "Personalization", icon: Brain },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

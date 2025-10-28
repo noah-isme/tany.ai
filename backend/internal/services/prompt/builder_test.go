@@ -1,11 +1,12 @@
 package prompt
 
 import (
-	"strings"
-	"testing"
-	"time"
+        "strings"
+        "testing"
+        "time"
 
-	"github.com/tanydotai/tanyai/backend/internal/services/kb"
+        "github.com/tanydotai/tanyai/backend/internal/embedding"
+        "github.com/tanydotai/tanyai/backend/internal/services/kb"
 )
 
 func sampleBase() kb.KnowledgeBase {
@@ -47,14 +48,34 @@ func TestBuildPromptIncludesContextAndQuestion(t *testing.T) {
 }
 
 func TestSummarizeForHumanReferencesFeaturedProject(t *testing.T) {
-	response := SummarizeForHuman("Apa layananmu?", sampleBase())
-	if !strings.Contains(response, "Project A") {
-		t.Fatalf("expected featured project to be referenced")
-	}
-	if !strings.Contains(response, "Build") {
-		t.Fatalf("expected service mention in summary")
-	}
-	if !strings.Contains(response, "New Launch") {
-		t.Fatalf("expected latest post mention in summary")
-	}
+        response := SummarizeForHuman("Apa layananmu?", sampleBase())
+        if !strings.Contains(response, "Project A") {
+                t.Fatalf("expected featured project to be referenced")
+        }
+        if !strings.Contains(response, "Build") {
+                t.Fatalf("expected service mention in summary")
+        }
+        if !strings.Contains(response, "New Launch") {
+                t.Fatalf("expected latest post mention in summary")
+        }
+}
+
+func TestBuildPersonalizedPromptAddsSnippets(t *testing.T) {
+        personalization := embedding.PersonalizationResult{
+                Enabled: true,
+                Weight:  0.7,
+                Snippets: []embedding.Snippet{
+                        {Kind: "profile", Score: 0.92, Content: "Persona profesional yang hangat."},
+                },
+        }
+        prompt := BuildPersonalizedPrompt(sampleBase(), "Perkenalkan diri", personalization)
+        if !strings.Contains(prompt, "Instruksi personalisasi") {
+                t.Fatalf("expected personalization header in prompt")
+        }
+        if !strings.Contains(prompt, "skor 0.92") {
+                t.Fatalf("expected snippet score to be rendered")
+        }
+        if !strings.Contains(prompt, "Persona profesional yang hangat.") {
+                t.Fatalf("expected snippet content in prompt")
+        }
 }

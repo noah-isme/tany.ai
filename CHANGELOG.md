@@ -1,5 +1,18 @@
 # Changelog
 
+# [v1.3.0] - 2025-03-15
+### Added
+- Skema pgvector baru `embeddings` dan `embedding_config` untuk menyimpan memori semantik, lengkap dengan indeks IVFFLAT agar pencarian cosine similarity efisien.【F:backend/migrations/202503150000_add_embeddings.up.sql†L1-L44】
+- Paket `internal/embedding` yang menangani repository, layanan caching, handler admin, serta integrasi dengan analytics metadata.【F:backend/internal/embedding/service.go†L1-L280】【F:backend/internal/embedding/handler.go†L1-L92】【F:backend/internal/handlers/chat_handler.go†L27-L206】
+- Provider OpenAI embedding dan builder prompt baru yang menyisipkan instruksi persona (`BuildPersonalizedPrompt`).【F:backend/internal/ai/openai_embeddings.go†L1-L97】【F:backend/internal/services/prompt/personalization.go†L1-L49】
+- Panel admin **AI Personalization** lengkap dengan slider bobot, statistik embedding, serta aksi reindex/reset + server actions Next.js.【F:frontend/app/admin/personalization/page.tsx†L1-L28】【F:frontend/components/admin/PersonalizationPanel.tsx†L1-L196】【F:frontend/lib/admin-api.ts†L1-L214】
+- Dokumentasi operator `docs/AI_PERSONALIZATION_GUIDE.md` untuk arsitektur, variabel environment, dan QA checklist personalisasi.【F:docs/AI_PERSONALIZATION_GUIDE.md†L1-L92】
+
+### Changed
+- Konfigurasi runtime menambahkan `ENABLE_PERSONALIZATION`, `EMBEDDING_*`, dan `PERSONALIZATION_WEIGHT`, serta otomatis memuat provider embedding saat server diinisialisasi.【F:backend/internal/config/env.go†L24-L233】【F:backend/internal/server/server.go†L30-L169】
+- Chat handler kini memanggil personalizer sebelum mem-build prompt dan mengirim metrik tambahan ke analytics.【F:backend/internal/handlers/chat_handler.go†L27-L206】
+- README diperbarui ke status rilis v1.3.0 dengan highlight personalisasi AI dan tautan panduan baru.【F:README.md†L1-L124】
+
 ## [v1.2.0] - 2025-01-15
 ### Added
 - Modul analytics real-time dengan tabel baru `analytics_events` dan `analytics_summary` untuk menyimpan event chat dan ringkasan harian.【F:backend/migrations/202501010000_add_analytics_tables.up.sql†L1-L40】

@@ -6,6 +6,7 @@ import type {
   ExternalItem,
   ExternalSource,
   PaginatedResponse,
+  PersonalizationSummary,
   Profile,
   Project,
   Service,
@@ -195,6 +196,30 @@ export async function setExternalItemVisibility(id: string, visible: boolean): P
     },
   );
   return response.data;
+}
+
+export async function fetchPersonalizationSummary(): Promise<PersonalizationSummary> {
+  const response = await apiFetch<{ data: PersonalizationSummary }>("/api/admin/personalization");
+  return response.data;
+}
+
+export async function updatePersonalizationWeight(weight: number): Promise<number> {
+  const response = await apiFetch<{ data: { weight: number } }>("/api/admin/personalization/weight", {
+    method: "PATCH",
+    body: { weight },
+  });
+  return response.data.weight;
+}
+
+export async function reindexPersonalization(): Promise<{ indexed: number }> {
+  const response = await apiFetch<{ data: { indexed: number } }>("/api/admin/personalization/reindex", {
+    method: "POST",
+  });
+  return response.data;
+}
+
+export async function resetPersonalization(): Promise<void> {
+  await apiFetch("/api/admin/personalization/reset", { method: "POST" });
 }
 
 function buildAnalyticsQuery(params: AnalyticsFilter = {}): string {

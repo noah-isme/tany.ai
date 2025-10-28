@@ -7,12 +7,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tanydotai/tanyai/backend/internal/ai"
+	"github.com/tanydotai/tanyai/backend/internal/embedding"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
 	"github.com/tanydotai/tanyai/backend/internal/services/kb"
@@ -59,6 +61,18 @@ func (s *stubProvider) Generate(context.Context, ai.Request) (ai.Response, error
 	return ai.Response{Text: s.response}, nil
 }
 
+type stubPersonalizer struct {
+	result embedding.PersonalizationResult
+	err    error
+}
+
+func (s *stubPersonalizer) Personalize(context.Context, string) (embedding.PersonalizationResult, error) {
+	if s.err != nil {
+		return embedding.PersonalizationResult{}, s.err
+	}
+	return s.result, nil
+}
+
 func TestHandleChatStoresHistory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	knowledge := &stubKnowledge{base: kb.KnowledgeBase{
@@ -67,7 +81,7 @@ func TestHandleChatStoresHistory(t *testing.T) {
 		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
 	}}
 	history := &historyRecorder{}
-        handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"}, "mock", nil)
+	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"}, "mock", nil, nil)
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -109,7 +123,7 @@ func TestHandleChatFallsBackOnProviderError(t *testing.T) {
 		Projects: []kb.Project{{Title: "Featured", IsFeatured: true}},
 	}}
 	history := &historyRecorder{}
-        handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{err: errors.New("boom")}, "mock", nil)
+	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{err: errors.New("boom")}, "mock", nil, nil)
 	engine := gin.New()
 	engine.POST("/chat", handler.HandleChat)
 
@@ -136,7 +150,7 @@ func TestHandleChatFallsBackOnProviderError(t *testing.T) {
 func TestHandleKnowledgeBaseSetsCachingHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	knowledge := &stubKnowledge{base: kb.KnowledgeBase{Profile: kb.Profile{Name: "Tanya"}}}
-        handler := NewChatHandler(knowledge, nil, "mock", &stubProvider{response: "ok"}, "mock", nil)
+	handler := NewChatHandler(knowledge, nil, "mock", &stubProvider{response: "ok"}, "mock", nil, nil)
 	engine := gin.New()
 	engine.GET("/kb", handler.HandleKnowledgeBase)
 
@@ -153,5 +167,39 @@ func TestHandleKnowledgeBaseSetsCachingHeaders(t *testing.T) {
 	}
 	if cacheControl := res.Header().Get("Cache-Control"); cacheControl == "" {
 		t.Fatalf("expected Cache-Control header to be set")
+	}
+}
+
+func TestHandleChatAppendsPersonalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	knowledge := &stubKnowledge{base: kb.KnowledgeBase{
+		Profile:  kb.Profile{Name: "Tanya"},
+		Services: []kb.Service{{Name: "Consulting"}},
+	}}
+	history := &historyRecorder{}
+	personalizer := &stubPersonalizer{result: embedding.PersonalizationResult{
+		Enabled:  true,
+		Weight:   0.6,
+		Provider: "openai",
+		Snippets: []embedding.Snippet{{Kind: "profile", Score: 0.9, Content: "Persona profesional."}},
+	}}
+	handler := NewChatHandler(knowledge, history, "mock-model", &stubProvider{response: "Jawaban AI"}, "mock", nil, personalizer)
+	engine := gin.New()
+	engine.POST("/chat", handler.HandleChat)
+
+	req := httptest.NewRequest(http.MethodPost, "/chat", bytes.NewBufferString(`{"question":"Siapa kamu?"}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	engine.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.Code)
+	}
+	var payload ChatResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !strings.Contains(payload.Prompt, "Instruksi personalisasi") {
+		t.Fatalf("expected personalization instructions in prompt")
 	}
 }

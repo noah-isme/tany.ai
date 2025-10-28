@@ -15,6 +15,7 @@ import (
 	"github.com/tanydotai/tanyai/backend/internal/analytics"
 	"github.com/tanydotai/tanyai/backend/internal/auth"
 	"github.com/tanydotai/tanyai/backend/internal/config"
+	"github.com/tanydotai/tanyai/backend/internal/embedding"
 	"github.com/tanydotai/tanyai/backend/internal/handlers"
 	adminhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
 	authhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/auth"
@@ -46,7 +47,21 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 
 	chatHistoryRepo := repos.NewChatHistoryRepository(database)
 	provider := resolveProvider(cfg)
-	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider, cfg.AIProvider, analyticsService)
+	embeddingRepo := embedding.NewRepository(database, cfg.EmbeddingDimension)
+	embProvider := resolveEmbeddingProvider(cfg)
+	personalizer, err := embedding.NewService(context.Background(), embeddingRepo, embProvider, embedding.Options{
+		Enabled:       cfg.EnablePersonalization,
+		ProviderName:  cfg.EmbeddingProvider,
+		Dimension:     cfg.EmbeddingDimension,
+		CacheTTL:      cfg.EmbeddingCacheTTL,
+		DefaultWeight: cfg.PersonalizationWeight,
+	})
+	if err != nil {
+		return nil, err
+	}
+	embeddingHandler := embedding.NewHandler(personalizer, aggregator, aggregator.Invalidate)
+
+	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider, cfg.AIProvider, analyticsService, personalizer)
 	healthHandler := handlers.NewHealthHandler(database)
 
 	externalSourceRepo := repos.NewExternalSourceRepository(database)
@@ -172,6 +187,14 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 			external.PATCH("/items/:id/visibility", externalItemHandler.ToggleVisibility)
 		}
 
+		personalization := adminGroup.Group("/personalization")
+		{
+			personalization.GET("", embeddingHandler.Summary)
+			personalization.POST("/reindex", embeddingHandler.Reindex)
+			personalization.POST("/reset", embeddingHandler.Reset)
+			personalization.PATCH("/weight", embeddingHandler.UpdateWeight)
+		}
+
 		adminGroup.POST("/uploads", middleware.RateLimitByIP(uploadLimiter), uploadsHandler.Create)
 	}
 
@@ -237,6 +260,25 @@ func resolveProvider(cfg config.Config) ai.Provider {
 	default:
 		log.Printf("[warn] unsupported AI_PROVIDER=%s, using mock provider", cfg.AIProvider)
 		return ai.NewMock()
+	}
+}
+
+func resolveEmbeddingProvider(cfg config.Config) embedding.Provider {
+	if !cfg.EnablePersonalization {
+		return nil
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.EmbeddingProvider))
+	switch provider {
+	case "openai":
+		key := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+		if key == "" {
+			log.Println("[warn] OPENAI_API_KEY missing, personalization provider disabled")
+			return nil
+		}
+		return ai.NewOpenAIEmbedding(key, cfg.EmbeddingModel)
+	default:
+		log.Printf("[warn] unsupported EMBEDDING_PROVIDER=%s, disabling personalization", cfg.EmbeddingProvider)
+		return nil
 	}
 }
 
