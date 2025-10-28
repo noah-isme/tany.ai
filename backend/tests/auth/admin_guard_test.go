@@ -1,8 +1,10 @@
 package auth_test
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -76,10 +78,14 @@ func TestAdminRoutesAllowAdmin(t *testing.T) {
 func newTestServer(t *testing.T) (*server.Server, *appauth.TokenService, func()) {
 	t.Helper()
 
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
 	dbx := sqlx.NewDb(db, "sqlmock")
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT value FROM embedding_config WHERE key = $1")).
+		WithArgs("personalization").
+		WillReturnError(sql.ErrNoRows)
 
 	cfg := config.Config{
 		AppEnv:                   "test",

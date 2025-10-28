@@ -116,3 +116,13 @@ export type AnalyticsEvent = {
   userAgent?: string;
   metadata: Record<string, unknown>;
 };
+
+export type PersonalizationSummary = {
+  enabled: boolean;
+  provider: string;
+  dimension: number;
+  count: number;
+  weight: number;
+  lastReindexedAt?: string;
+  lastResetAt?: string;
+};

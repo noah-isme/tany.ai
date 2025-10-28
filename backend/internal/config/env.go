@@ -34,6 +34,11 @@ const (
 	minJWTSecretLength           = 32
 	defaultExternalHTTPTimeoutMS = 8000
 	defaultExternalRateLimitRPM  = 30
+	defaultEmbeddingDimension    = 1536
+	defaultEmbeddingCacheTTL     = 24 * time.Hour
+	defaultEmbeddingProvider     = "openai"
+	defaultEmbeddingModel        = "text-embedding-3-large"
+	defaultPersonalizationWeight = 0.65
 )
 
 var defaultAllowedMIMEs = []string{
@@ -76,6 +81,12 @@ type Config struct {
 	External                 ExternalConfig
 	EnableAnalytics          bool
 	AnalyticsRetentionDays   int
+	EnablePersonalization    bool
+	EmbeddingProvider        string
+	EmbeddingModel           string
+	EmbeddingDimension       int
+	EmbeddingCacheTTL        time.Duration
+	PersonalizationWeight    float64
 }
 
 // StorageDriver enumerates supported object storage providers.
@@ -157,6 +168,12 @@ func Load() (Config, error) {
 			DomainAllowlist: append([]string{}, defaultExternalAllowlist...),
 			RateLimitRPM:    defaultExternalRateLimitRPM,
 		},
+		EnablePersonalization: false,
+		EmbeddingProvider:     strings.ToLower(getEnv("EMBEDDING_PROVIDER", defaultEmbeddingProvider)),
+		EmbeddingModel:        getEnv("EMBEDDING_MODEL", defaultEmbeddingModel),
+		EmbeddingDimension:    defaultEmbeddingDimension,
+		EmbeddingCacheTTL:     defaultEmbeddingCacheTTL,
+		PersonalizationWeight: defaultPersonalizationWeight,
 	}
 
 	if cfg.PostgresURL == "" {
@@ -218,6 +235,58 @@ func Load() (Config, error) {
 		}
 		if parsed > 0 {
 			cfg.AnalyticsRetentionDays = parsed
+		}
+	}
+
+	if v := os.Getenv("ENABLE_PERSONALIZATION"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid ENABLE_PERSONALIZATION: %w", err)
+		}
+		cfg.EnablePersonalization = parsed
+	}
+
+	if v := os.Getenv("EMBEDDING_PROVIDER"); v != "" {
+		cfg.EmbeddingProvider = strings.ToLower(strings.TrimSpace(v))
+	}
+
+	if v := os.Getenv("EMBEDDING_MODEL"); v != "" {
+		cfg.EmbeddingModel = strings.TrimSpace(v)
+	}
+
+	if v := os.Getenv("EMBEDDING_DIM"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid EMBEDDING_DIM: %w", err)
+		}
+		if parsed > 0 {
+			cfg.EmbeddingDimension = parsed
+		}
+	}
+
+	if v := os.Getenv("EMBEDDING_CACHE_TTL"); v != "" {
+		ttl, err := time.ParseDuration(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid EMBEDDING_CACHE_TTL: %w", err)
+		}
+		if ttl <= 0 {
+			return Config{}, errors.New("EMBEDDING_CACHE_TTL must be greater than zero")
+		}
+		cfg.EmbeddingCacheTTL = ttl
+	}
+
+	if v := os.Getenv("PERSONALIZATION_WEIGHT"); v != "" {
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid PERSONALIZATION_WEIGHT: %w", err)
+		}
+		switch {
+		case parsed < 0:
+			cfg.PersonalizationWeight = 0
+		case parsed > 1:
+			cfg.PersonalizationWeight = 1
+		default:
+			cfg.PersonalizationWeight = parsed
 		}
 	}
 

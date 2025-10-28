@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tanydotai/tanyai/backend/internal/ai"
 	"github.com/tanydotai/tanyai/backend/internal/analytics"
+	"github.com/tanydotai/tanyai/backend/internal/embedding"
 	"github.com/tanydotai/tanyai/backend/internal/httpapi"
 	"github.com/tanydotai/tanyai/backend/internal/models"
 	"github.com/tanydotai/tanyai/backend/internal/repos"
@@ -40,6 +41,11 @@ type ChatHandler struct {
 	provider     ai.Provider
 	providerName string
 	analytics    analyticsRecorder
+	personalizer personalizationProvider
+}
+
+type personalizationProvider interface {
+	Personalize(ctx context.Context, question string) (embedding.PersonalizationResult, error)
 }
 
 // ChatRequest represents the incoming chat payload.
@@ -57,7 +63,7 @@ type ChatResponse struct {
 }
 
 // NewChatHandler constructs a ChatHandler with the provided dependencies.
-func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string, provider ai.Provider, providerName string, analytics analyticsRecorder) *ChatHandler {
+func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryRepository, modelName string, provider ai.Provider, providerName string, analytics analyticsRecorder, personalizer personalizationProvider) *ChatHandler {
 	return &ChatHandler{
 		knowledge:    knowledge,
 		history:      history,
@@ -65,6 +71,7 @@ func NewChatHandler(knowledge KnowledgeService, history repos.ChatHistoryReposit
 		provider:     provider,
 		providerName: providerName,
 		analytics:    analytics,
+		personalizer: personalizer,
 	}
 }
 
@@ -84,7 +91,16 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 	c.Set("kb_cache_hit", cacheHit)
 	c.Set("model", h.modelName)
 
-	promptText := prompt.BuildPrompt(base, payload.Question)
+	personalization := embedding.PersonalizationResult{}
+	if h.personalizer != nil {
+		if result, err := h.personalizer.Personalize(c.Request.Context(), payload.Question); err != nil {
+			slog.Warn("personalization_lookup_failed", "error", err)
+		} else {
+			personalization = result
+		}
+	}
+
+	promptText := prompt.BuildPersonalizedPrompt(base, payload.Question, personalization)
 	answer := ""
 	promptHash := sha256.Sum256([]byte(promptText))
 	promptLength := len([]rune(promptText))
@@ -154,6 +170,11 @@ func (h *ChatHandler) HandleChat(c *gin.Context) {
 		}
 		if payload.ChatID != "" {
 			metadata["session_chat_id"] = payload.ChatID
+		}
+		if personalization.Enabled {
+			metadata["personalization_weight"] = personalization.Weight
+			metadata["personalization_snippets"] = len(personalization.Snippets)
+			metadata["personalization_provider"] = personalization.Provider
 		}
 		if err := h.analytics.RecordChat(c.Request.Context(), analytics.RecordChatInput{
 			Timestamp: time.Now(),
