@@ -140,7 +140,6 @@ test("admin skill management flow", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Integrasi Konten Eksternal" })).toBeVisible();
   const syncButton = page.getByRole("button", { name: /Sinkron sekarang/i }).first();
   await syncButton.click();
-  await page.waitForLoadState("networkidle");
   await expect(page.getByRole("status")).toContainText(/Sinkronisasi mock berhasil/i, {
     timeout: 15000,
   });
@@ -161,16 +160,31 @@ test("admin skill management flow", async ({ page }) => {
 
   const initialState = await toggleInput.isChecked();
 
+  const waitForToggleResponse = () =>
+    page.waitForResponse((response) => {
+      if (response.request().method() !== "PATCH") {
+        return false;
+      }
+      const url = new URL(response.url());
+      return /\/api\/admin\/external\/items\/.+\/visibility$/.test(url.pathname) && response.ok();
+    });
+
+  const ensureState = async (checked: boolean) => {
+    if ((await toggleInput.isChecked()) !== checked) {
+      await toggleInput.focus();
+      await Promise.all([waitForToggleResponse(), page.keyboard.press(" ")]);
+    }
+    await expect(toggleInput)[checked ? "toBeChecked" : "not.toBeChecked"]({
+      timeout: 15000,
+    });
+  };
+
   if (initialState) {
-    await toggleInput.uncheck();
-    await expect(toggleInput).not.toBeChecked({ timeout: 15000 });
-    await toggleInput.check();
-    await expect(toggleInput).toBeChecked({ timeout: 15000 });
+    await ensureState(false);
+    await ensureState(true);
   } else {
-    await toggleInput.check();
-    await expect(toggleInput).toBeChecked({ timeout: 15000 });
-    await toggleInput.uncheck();
-    await expect(toggleInput).not.toBeChecked({ timeout: 15000 });
+    await ensureState(true);
+    await ensureState(false);
   }
 
   await page.getByLabel("Keluar").click();
