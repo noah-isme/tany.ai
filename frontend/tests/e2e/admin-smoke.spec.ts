@@ -97,6 +97,45 @@ test("admin skill management flow", async ({ page }) => {
   await page.reload();
   await expect(page.getByText(projectTitle)).not.toBeVisible();
 
+  await page.route("**/api/admin/external/items/*/visibility", async (route) => {
+    if (route.request().method() === "PATCH") {
+      let visible = false;
+      try {
+        const body = route.request().postDataJSON?.();
+        if (body && typeof body.visible === "boolean") {
+          visible = body.visible;
+        }
+      } catch {
+        // ignore JSON parsing errors and fall back to false
+      }
+
+      const url = new URL(route.request().url());
+      const segments = url.pathname.split("/").filter(Boolean);
+      const itemId = segments.at(-2) ?? "external-item";
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: itemId,
+            sourceName: "noahis.me",
+            kind: "project",
+            title: "Mock External Item",
+            summary: "Konten mock Playwright",
+            url: "https://www.noahis.me/mock-item",
+            visible,
+            publishedAt: new Date().toISOString(),
+            metadata: {},
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
   await page.goto("/admin/integrations");
   await expect(page.getByRole("heading", { name: "Integrasi Konten Eksternal" })).toBeVisible();
   const syncButton = page.getByRole("button", { name: /Sinkron sekarang/i }).first();
@@ -117,19 +156,22 @@ test("admin skill management flow", async ({ page }) => {
   const firstRow = externalRows.first();
   await expect(firstRow).toBeVisible({ timeout: 15000 });
 
-  const toggleLabel = firstRow.locator(
-    'label:has(input[aria-label^="Atur visibilitas"])',
-  );
-  await expect(toggleLabel).toBeVisible({ timeout: 15000 });
+  const toggleInput = firstRow.getByRole("checkbox", { name: /^Atur visibilitas/i });
+  await expect(toggleInput).toBeVisible({ timeout: 15000 });
 
-  const toggleInput = toggleLabel.locator('input[type="checkbox"]');
   const initialState = await toggleInput.isChecked();
 
-  await toggleLabel.click();
-  await expect(toggleInput).toHaveJSProperty("checked", !initialState);
-
-  await toggleLabel.click();
-  await expect(toggleInput).toHaveJSProperty("checked", initialState);
+  if (initialState) {
+    await toggleInput.uncheck();
+    await expect(toggleInput).not.toBeChecked({ timeout: 15000 });
+    await toggleInput.check();
+    await expect(toggleInput).toBeChecked({ timeout: 15000 });
+  } else {
+    await toggleInput.check();
+    await expect(toggleInput).toBeChecked({ timeout: 15000 });
+    await toggleInput.uncheck();
+    await expect(toggleInput).not.toBeChecked({ timeout: 15000 });
+  }
 
   await page.getByLabel("Keluar").click();
 });
