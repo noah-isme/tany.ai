@@ -3,7 +3,7 @@ include .env
 export $(shell sed -n 's/^\([^#=]*\)=.*/\1/p' .env)
 endif
 
-.PHONY: migrate seed test build dev
+.PHONY: migrate seed test build dev external-sync
 
 migrate:
 	@go run ./cmd/migrate
@@ -19,4 +19,7 @@ build:
 	@go build -o tmp/main ./cmd/api
 
 dev:
-	@./dev.sh
+        @./dev.sh
+
+external-sync:
+        @go run ./cmd/external-sync

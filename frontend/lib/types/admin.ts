@@ -43,6 +43,28 @@ export type Project = {
   is_featured: boolean;
 };
 
+export type ExternalSource = {
+  id: string;
+  name: string;
+  baseUrl: string;
+  sourceType: string;
+  enabled: boolean;
+  lastSyncedAt?: string;
+  lastModified?: string;
+};
+
+export type ExternalItem = {
+  id: string;
+  sourceName: string;
+  kind: string;
+  title: string;
+  summary?: string;
+  url: string;
+  visible: boolean;
+  publishedAt?: string;
+  metadata: Record<string, unknown>;
+};
+
 export type PaginatedResponse<T> = {
   items: T[];
   page: number;

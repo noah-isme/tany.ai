@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: dev api web migrate seed backend-test backend-build frontend-lint frontend-test frontend-build
+.PHONY: dev api web migrate seed backend-test backend-build frontend-lint frontend-test frontend-build external-sync
 
 dev:
 	@echo "Starting tany.ai API and web app..."
@@ -33,4 +33,7 @@ frontend-test:
 	@cd frontend && npm test
 
 frontend-build:
-	@cd frontend && npm run build
+        @cd frontend && npm run build
+
+external-sync:
+        @cd backend && make external-sync

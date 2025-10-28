@@ -76,6 +76,45 @@ const projects = [
   },
 ];
 
+const externalSources = [
+  {
+    id: randomUUID(),
+    name: "noahis.me",
+    base_url: "https://www.noahis.me",
+    source_type: "auto",
+    enabled: true,
+    last_synced_at: new Date().toISOString(),
+    last_modified: new Date().toISOString(),
+  },
+];
+
+const externalItems = [
+  {
+    id: randomUUID(),
+    source_id: externalSources[0].id,
+    source_name: externalSources[0].name,
+    kind: "project",
+    title: "Mock External Project",
+    summary: "Integrasi proyek dari noahis.me",
+    url: "https://www.noahis.me/project/mock/",
+    visible: true,
+    published_at: new Date().toISOString(),
+    metadata: {},
+  },
+  {
+    id: randomUUID(),
+    source_id: externalSources[0].id,
+    source_name: externalSources[0].name,
+    kind: "post",
+    title: "Mock External Post",
+    summary: "Artikel terbaru dari blog noahis.me",
+    url: "https://www.noahis.me/post/mock/",
+    visible: true,
+    published_at: new Date().toISOString(),
+    metadata: {},
+  },
+];
+
 function toNumberOrNull(value) {
   if (typeof value === "number") {
     return value;
@@ -287,6 +326,93 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && url.startsWith("/api/admin/skills")) {
     const sorted = skills.slice().sort((a, b) => a.order - b.order);
     sendJson(res, 200, { items: sorted, page: 1, limit: sorted.length, total: sorted.length });
+    return;
+  }
+
+  if (req.method === "GET" && url.startsWith("/api/admin/external/sources")) {
+    const items = externalSources.map((source) => ({
+      id: source.id,
+      name: source.name,
+      baseUrl: source.base_url,
+      sourceType: source.source_type,
+      enabled: source.enabled,
+      lastSyncedAt: source.last_synced_at,
+      lastModified: source.last_modified,
+    }));
+    sendJson(res, 200, { items, page: 1, limit: items.length || 1, total: items.length });
+    return;
+  }
+
+  if (req.method === "POST" && url.match(/^\/api\/admin\/external\/sources\/.+\/sync$/)) {
+    const sourceId = url.split("/")[4];
+    const target = externalSources.find((source) => source.id === sourceId);
+    if (!target) {
+      sendJson(res, 404, { error: { message: "Source not found" } });
+      return;
+    }
+    const newItem = {
+      id: randomUUID(),
+      source_id: target.id,
+      source_name: target.name,
+      kind: "project",
+      title: `Synced Item ${new Date().toISOString()}`,
+      summary: "Konten baru dari sinkronisasi.",
+      url: `https://www.noahis.me/project/${Date.now()}/`,
+      visible: true,
+      published_at: new Date().toISOString(),
+      metadata: {},
+    };
+    externalItems.unshift(newItem);
+    target.last_synced_at = new Date().toISOString();
+    sendJson(res, 200, {
+      data: {
+        message: "Sinkronisasi mock berhasil",
+        itemsUpserted: 1,
+        etag: `mock-${Date.now()}`,
+        lastModified: target.last_synced_at,
+      },
+    });
+    return;
+  }
+
+  if (req.method === "GET" && url.startsWith("/api/admin/external/items")) {
+    const items = externalItems.map((item) => ({
+      id: item.id,
+      sourceName: item.source_name,
+      kind: item.kind,
+      title: item.title,
+      summary: item.summary,
+      url: item.url,
+      visible: item.visible,
+      publishedAt: item.published_at,
+      metadata: item.metadata,
+    }));
+    sendJson(res, 200, { items, page: 1, limit: items.length || 1, total: items.length });
+    return;
+  }
+
+  if (req.method === "PATCH" && url.match(/^\/api\/admin\/external\/items\/.+\/visibility$/)) {
+    const itemId = url.split("/")[4];
+    const body = await parseBody(req);
+    const target = externalItems.find((item) => item.id === itemId);
+    if (!target) {
+      sendJson(res, 404, { error: { message: "Item not found" } });
+      return;
+    }
+    target.visible = typeof body.visible === "boolean" ? body.visible : target.visible;
+    sendJson(res, 200, {
+      data: {
+        id: target.id,
+        sourceName: target.source_name,
+        kind: target.kind,
+        title: target.title,
+        summary: target.summary,
+        url: target.url,
+        visible: target.visible,
+        publishedAt: target.published_at,
+        metadata: target.metadata,
+      },
+    });
     return;
   }
 

@@ -1,13 +1,13 @@
 package server
 
 import (
-	"context"
-	"errors"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+        "context"
+        "errors"
+        "log"
+        "net/http"
+        "os"
+        "strings"
+        "time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -18,8 +18,10 @@ import (
 	adminhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/admin"
 	authhandlers "github.com/tanydotai/tanyai/backend/internal/handlers/auth"
 	"github.com/tanydotai/tanyai/backend/internal/middleware"
-	"github.com/tanydotai/tanyai/backend/internal/repos"
-	"github.com/tanydotai/tanyai/backend/internal/services/kb"
+        "github.com/tanydotai/tanyai/backend/internal/models"
+        "github.com/tanydotai/tanyai/backend/internal/repos"
+        "github.com/tanydotai/tanyai/backend/internal/services/kb"
+        "github.com/tanydotai/tanyai/backend/internal/services/ingest"
 	"github.com/tanydotai/tanyai/backend/internal/storage"
 )
 
@@ -36,28 +38,58 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 	engine := gin.New()
 	engine.Use(middleware.RequestLogger(), middleware.RecoverWithLog(), middleware.SecurityHeaders(), middleware.CORS())
 
-	aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
-	chatHistoryRepo := repos.NewChatHistoryRepository(database)
-	provider := resolveProvider(cfg)
-	chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider)
-	healthHandler := handlers.NewHealthHandler(database)
+        aggregator := kb.NewAggregator(database, cfg.KnowledgeCacheTTL)
+        chatHistoryRepo := repos.NewChatHistoryRepository(database)
+        provider := resolveProvider(cfg)
+        chatHandler := handlers.NewChatHandler(aggregator, chatHistoryRepo, cfg.ChatModel, provider)
+        healthHandler := handlers.NewHealthHandler(database)
 
-	userRepo := repos.NewUserRepository(database)
-	tokenService, err := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
-	if err != nil {
-		return nil, err
-	}
+        externalSourceRepo := repos.NewExternalSourceRepository(database)
+        externalItemRepo := repos.NewExternalItemRepository(database)
+        ingestService := ingest.NewService(cfg.External.HTTPTimeout, cfg.External.RateLimitRPM, cfg.External.DomainAllowlist)
+
+        defaults := make([]models.ExternalSource, 0, len(cfg.External.SourcesDefault))
+        for _, seed := range cfg.External.SourcesDefault {
+                name := strings.TrimSpace(seed.Name)
+                baseURL := strings.TrimSpace(seed.BaseURL)
+                if name == "" || baseURL == "" {
+                        continue
+                }
+                sourceType := strings.TrimSpace(seed.SourceType)
+                if sourceType == "" {
+                        sourceType = "auto"
+                }
+                defaults = append(defaults, models.ExternalSource{
+                        Name:       name,
+                        BaseURL:    baseURL,
+                        SourceType: sourceType,
+                        Enabled:    seed.Enabled,
+                })
+        }
+        if len(defaults) > 0 {
+                if err := externalSourceRepo.EnsureDefaults(context.Background(), defaults); err != nil {
+                        return nil, err
+                }
+        }
+
+        userRepo := repos.NewUserRepository(database)
+        tokenService, err := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
+        if err != nil {
+                return nil, err
+        }
 	rateLimiter := auth.NewRateLimiter(cfg.LoginRateLimitPerMin, cfg.LoginRateLimitBurst, 10*time.Minute)
 
-	profileRepo := repos.NewProfileRepository(database)
-	skillsRepo := repos.NewSkillRepository(database)
-	servicesRepo := repos.NewServiceRepository(database)
-	projectsRepo := repos.NewProjectRepository(database)
+        profileRepo := repos.NewProfileRepository(database)
+        skillsRepo := repos.NewSkillRepository(database)
+        servicesRepo := repos.NewServiceRepository(database)
+        projectsRepo := repos.NewProjectRepository(database)
 
-	profileHandler := adminhandlers.NewProfileHandler(profileRepo, aggregator.Invalidate)
-	skillHandler := adminhandlers.NewSkillHandler(skillsRepo, aggregator.Invalidate)
-	serviceHandler := adminhandlers.NewServiceHandler(servicesRepo, aggregator.Invalidate)
-	projectHandler := adminhandlers.NewProjectHandler(projectsRepo, aggregator.Invalidate)
+        profileHandler := adminhandlers.NewProfileHandler(profileRepo, aggregator.Invalidate)
+        skillHandler := adminhandlers.NewSkillHandler(skillsRepo, aggregator.Invalidate)
+        serviceHandler := adminhandlers.NewServiceHandler(servicesRepo, aggregator.Invalidate)
+        projectHandler := adminhandlers.NewProjectHandler(projectsRepo, aggregator.Invalidate)
+        externalSourceHandler := adminhandlers.NewExternalSourceHandler(externalSourceRepo, externalItemRepo, ingestService, aggregator.Invalidate)
+        externalItemHandler := adminhandlers.NewExternalItemHandler(externalItemRepo, aggregator.Invalidate)
 
 	objectStore, err := storage.New(cfg.Storage)
 	if err != nil {
@@ -110,18 +142,26 @@ func New(database *sqlx.DB, cfg config.Config) (*Server, error) {
 			services.PATCH(":id/toggle", serviceHandler.Toggle)
 		}
 
-		projects := adminGroup.Group("/projects")
-		{
-			projects.GET("", projectHandler.List)
-			projects.POST("", projectHandler.Create)
-			projects.PUT(":id", projectHandler.Update)
-			projects.DELETE(":id", projectHandler.Delete)
-			projects.PATCH("/reorder", projectHandler.Reorder)
-			projects.PATCH(":id/feature", projectHandler.Feature)
-		}
+                projects := adminGroup.Group("/projects")
+                {
+                        projects.GET("", projectHandler.List)
+                        projects.POST("", projectHandler.Create)
+                        projects.PUT(":id", projectHandler.Update)
+                        projects.DELETE(":id", projectHandler.Delete)
+                        projects.PATCH("/reorder", projectHandler.Reorder)
+                        projects.PATCH(":id/feature", projectHandler.Feature)
+                }
 
-		adminGroup.POST("/uploads", middleware.RateLimitByIP(uploadLimiter), uploadsHandler.Create)
-	}
+                external := adminGroup.Group("/external")
+                {
+                        external.GET("/sources", externalSourceHandler.List)
+                        external.POST("/sources/:id/sync", externalSourceHandler.Sync)
+                        external.GET("/items", externalItemHandler.List)
+                        external.PATCH("/items/:id/visibility", externalItemHandler.ToggleVisibility)
+                }
+
+                adminGroup.POST("/uploads", middleware.RateLimitByIP(uploadLimiter), uploadsHandler.Create)
+        }
 
 	httpSrv := &http.Server{
 		Addr:         ":" + resolvePort(),

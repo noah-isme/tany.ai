@@ -97,5 +97,22 @@ test("admin skill management flow", async ({ page }) => {
   await page.reload();
   await expect(page.getByText(projectTitle)).not.toBeVisible();
 
+  await page.goto("/admin/integrations");
+  await expect(page.getByRole("heading", { name: "Integrasi Konten Eksternal" })).toBeVisible();
+  const syncButton = page.getByRole("button", { name: /Sinkron sekarang/i }).first();
+  await syncButton.click();
+  await expect(page.getByText(/Sinkronisasi mock berhasil/)).toBeVisible();
+
+  const firstToggle = page
+    .locator("tbody tr")
+    .first()
+    .getByRole("checkbox", { name: /Atur visibilitas/i });
+  const initialState = await firstToggle.isChecked();
+  await firstToggle.click();
+  await expect(firstToggle).toHaveJSProperty("checked", !initialState);
+
+  await firstToggle.click();
+  await expect(firstToggle).toHaveJSProperty("checked", initialState);
+
   await page.getByLabel("Keluar").click();
 });

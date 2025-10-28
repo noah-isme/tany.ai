@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   FolderKanban,
   LayoutDashboard,
+  Plug,
   Settings,
   Sparkles,
   UserRound,
@@ -21,6 +22,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/skills", label: "Skills", icon: Sparkles },
   { href: "/admin/services", label: "Layanan", icon: BriefcaseBusiness },
   { href: "/admin/projects", label: "Proyek", icon: FolderKanban },
+  { href: "/admin/integrations", label: "Integrasi", icon: Plug },
   { href: "/admin/stats", label: "Statistik", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
