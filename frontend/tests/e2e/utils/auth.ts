@@ -36,6 +36,14 @@ type ProjectResponse = {
   is_featured: boolean;
 };
 
+type ExternalItemResponse = {
+  id: string;
+  title: string;
+  visible: boolean;
+  kind: string;
+  source_name: string;
+};
+
 function authHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
@@ -197,6 +205,30 @@ export async function updateProfile(
     token,
     "/api/admin/profile",
     { method: "PUT", data: payload },
+  );
+  return response.data;
+}
+
+export async function fetchExternalItems(page: Page, token: string): Promise<ExternalItemResponse[]> {
+  const response = await apiRequest<{ items: ExternalItemResponse[] }>(
+    page,
+    token,
+    "/api/admin/external/items?limit=50",
+  );
+  return response.items;
+}
+
+export async function setExternalItemVisibility(
+  page: Page,
+  token: string,
+  id: string,
+  visible: boolean,
+): Promise<ExternalItemResponse> {
+  const response = await apiRequest<{ data: ExternalItemResponse }>(
+    page,
+    token,
+    `/api/admin/external/items/${id}/visibility`,
+    { method: "PATCH", data: { visible } },
   );
   return response.data;
 }
