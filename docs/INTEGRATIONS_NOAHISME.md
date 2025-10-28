@@ -2,6 +2,8 @@
 
 Integrasi ini memungkinkan Tany.AI menarik proyek, layanan, dan artikel terbaru dari situs [noahis.me](https://noahis.me) secara otomatis. Konten yang berhasil disinkronkan akan muncul di basis pengetahuan serta dapat digunakan builder prompt saat merespons percakapan.
 
+> **Status QA (v1.1.0):** Sinkronisasi CLI/UI, workflow terjadwal, prompt builder, dan chat AI telah divalidasi end-to-end. Lihat laporan lengkap di [`docs/QA_RELEASE_V1.1.0.md`](./QA_RELEASE_V1.1.0.md).
+
 ## Alur singkat
 1. **Sumber eksternal** disimpan di tabel `external_sources`.
 2. **Ingestion service** mengambil sitemap dan halaman HTML, menghormati `robots.txt`, ETag, dan header `Last-Modified`.
@@ -42,13 +44,25 @@ Perintah ini menggunakan konfigurasi yang sama dengan aplikasi utama, termasuk e
 2. Klik **"Sinkron sekarang"** pada sumber yang diinginkan.
 3. Setelah sukses, tabel konten akan menampilkan item terbaru. Anda dapat mematikan visibilitas tiap item lewat toggle tanpa menghapus data.
 
+> **Catatan QA:** Playwright `admin-sync-flow` memastikan tombol "Sinkron sekarang" memanggil action server dan toggle visibilitas langsung memperbarui state UI serta API backend.
+
 ## Penjadwalan otomatis
 Workflow GitHub Actions `external-sync.yml` menjalankan `make external-sync` terjadwal. Set `POSTGRES_URL` dan `JWT_SECRET` sebagai secret repository (`PROD_POSTGRES_URL`, `PROD_JWT_SECRET` misalnya) lalu mapping ke environment workflow. Workflow akan gagal bila sinkronisasi error sehingga dapat dipantau lewat notifikasi GitHub.
+
+Hasil sinkronisasi dijaga idempoten berkat validasi hash konten dan pemanfaatan ETag/Last-Modified. Workflow rilis v1.1.0 memverifikasi satu siklus sukses tanpa duplikasi.
 
 ## Troubleshooting
 - **Sinkronisasi melewatkan konten baru:** pastikan server remote mengirim ETag/Last-Modified. Gunakan `make external-sync` dengan `LOG_LEVEL=debug` (opsional) untuk melihat log terperinci.
 - **Permintaan diblokir:** cek `EXTERNAL_DOMAIN_ALLOWLIST` serta `robots.txt`. Ingestion tidak akan mengakses domain yang tidak ada di allowlist atau dilarang oleh robots.
 - **HTML berformat kompleks:** Sanitizer berbasis [bluemonday](https://github.com/microcosm-cc/bluemonday) menghapus script/iframe. Jika informasi penting hilang, pertimbangkan untuk memperkaya metadata melalui `metadata` JSON.
+- **Konten tidak muncul di chat:** Pastikan item `visible = true`. Prompt builder hanya mengambil item aktif dan menggabungkannya sebagai blok "Portofolio unggulan" serta "Update terbaru".【F:backend/internal/services/prompt/builder.go†L71-L205】
+
+## Checklist pra-rilis
+- [x] `make external-sync` menghasilkan `status: ok` dan `itemsUpserted` ≥ 1.
+- [x] Tabel admin menampilkan item terbaru dan toggle visibilitas bekerja (lihat QA report).
+- [x] Endpoint `/api/v1/chat` menampilkan referensi noahis.me (uji dengan pertanyaan "Ceritakan portofolio luar kamu").
+- [x] Workflow `external-sync.yml` hijau minimal 1 siklus terakhir.
+- [x] Dokumentasi operator dan QA diperbarui sebelum tag `v1.1.0` dirilis.
 
 ## Referensi tabel
 ```sql

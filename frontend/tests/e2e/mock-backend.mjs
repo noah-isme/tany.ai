@@ -393,7 +393,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "PATCH" && url.match(/^\/api\/admin\/external\/items\/.+\/visibility$/)) {
-    const itemId = url.split("/")[4];
+    const [, , , , , itemId] = url.split("/");
     const body = await parseBody(req);
     const target = externalItems.find((item) => item.id === itemId);
     if (!target) {

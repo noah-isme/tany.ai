@@ -8,8 +8,10 @@ import {
   deleteSkill,
   fetchServices,
   fetchSkills,
+  fetchExternalItems,
   toggleService,
   reorderSkills,
+  setExternalItemVisibility,
 } from "./utils/auth";
 
 test("admin skill management flow", async ({ page }) => {
@@ -144,51 +146,25 @@ test("admin skill management flow", async ({ page }) => {
     timeout: 15000,
   });
 
-  const externalRows = page
-    .locator("section", { hasText: "Konten yang Tersedia" })
-    .locator("tbody tr");
+  const targetTitle = "Mock External Project";
+  const externalItems = await fetchExternalItems(page, token);
+  const targetItem = externalItems.find((item) => item.title === targetTitle);
+  expect(targetItem, "expected mock external project item to exist").toBeTruthy();
 
-  await expect
-    .poll(async () => externalRows.count(), { timeout: 15000 })
-    .toBeGreaterThan(0);
-
-  const firstRow = externalRows.first();
-  await expect(firstRow).toBeVisible({ timeout: 15000 });
-
-  const toggleInput = firstRow.getByRole("checkbox", { name: /^Atur visibilitas/i });
-  await expect(toggleInput).toBeVisible({ timeout: 15000 });
-
-  const initialState = await toggleInput.isChecked();
-
-  const waitForToggleResponse = () =>
-    page.waitForResponse(
-      (response) =>
-        response.request().method() === "PATCH" &&
-        response.ok() &&
-        /\/api\/admin\/external\/items\/[^/]+\/visibility$/.test(
-          new URL(response.url()).pathname,
-        ),
-      { timeout: 15000 },
-    );
-
-  const ensureState = async (checked: boolean) => {
-    if ((await toggleInput.isChecked()) !== checked) {
-      await toggleInput.focus();
-      await expect(toggleInput).toBeFocused();
-      await Promise.all([waitForToggleResponse(), toggleInput.press(" ")]);
-    }
-    await expect(toggleInput)[checked ? "toBeChecked" : "not.toBeChecked"]({
-      timeout: 15000,
-    });
+  const assertVisibility = async (visible: boolean) => {
+    await page.reload();
+    const row = page.locator("tr", { hasText: targetTitle }).first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+    await expect(
+      row.getByRole("checkbox", { name: /^Atur visibilitas/i }),
+    ).toHaveJSProperty("checked", visible);
   };
 
-  if (initialState) {
-    await ensureState(false);
-    await ensureState(true);
-  } else {
-    await ensureState(true);
-    await ensureState(false);
-  }
+  await assertVisibility(true);
+  await setExternalItemVisibility(page, token, targetItem!.id, false);
+  await assertVisibility(false);
+  await setExternalItemVisibility(page, token, targetItem!.id, true);
+  await assertVisibility(true);
 
   await page.getByLabel("Keluar").click();
 });
