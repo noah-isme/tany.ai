@@ -59,15 +59,18 @@ type serviceSeed struct {
 }
 
 type projectSeed struct {
-	ID          string `db:"id" json:"id"`
-	Title       string `db:"title" json:"title"`
-	Description string `db:"description" json:"description"`
-	TechStack   string `db:"tech_stack" json:"-"`
-	ImageURL    string `db:"image_url" json:"image_url"`
-	ProjectURL  string `db:"project_url" json:"project_url"`
-	Category    string `db:"category" json:"category"`
-	Order       int    `db:"order" json:"order"`
-	IsFeatured  bool   `db:"is_featured" json:"is_featured"`
+	ID            string `db:"id" json:"id"`
+	Title         string `db:"title" json:"title"`
+	Description   string `db:"description" json:"description"`
+	TechStack     string `db:"tech_stack" json:"-"`
+	ImageURL      string `db:"image_url" json:"image_url"`
+	ProjectURL    string `db:"project_url" json:"project_url"`
+	Category      string `db:"category" json:"category"`
+	DurationLabel string `db:"duration_label" json:"duration_label"`
+	PriceLabel    string `db:"price_label" json:"price_label"`
+	BudgetLabel   string `db:"budget_label" json:"budget_label"`
+	Order         int    `db:"order" json:"order"`
+	IsFeatured    bool   `db:"is_featured" json:"is_featured"`
 }
 
 type leadSeed struct {
@@ -88,15 +91,18 @@ type adminUserSeed struct {
 }
 
 type projectSeedFile struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	TechStack   []string `json:"tech_stack"`
-	ImageURL    string   `json:"image_url"`
-	ProjectURL  string   `json:"project_url"`
-	Category    string   `json:"category"`
-	Order       int      `json:"order"`
-	IsFeatured  bool     `json:"is_featured"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Description   string   `json:"description"`
+	TechStack     []string `json:"tech_stack"`
+	ImageURL      string   `json:"image_url"`
+	ProjectURL    string   `json:"project_url"`
+	Category      string   `json:"category"`
+	DurationLabel string   `json:"duration_label"`
+	PriceLabel    string   `json:"price_label"`
+	BudgetLabel   string   `json:"budget_label"`
+	Order         int      `json:"order"`
+	IsFeatured    bool     `json:"is_featured"`
 }
 
 type seedPayload struct {
@@ -157,15 +163,18 @@ func loadSeedData(fsys fs.FS) (seedPayload, error) {
 	payload.Projects = make([]projectSeed, len(projectFiles))
 	for i, p := range projectFiles {
 		payload.Projects[i] = projectSeed{
-			ID:          p.ID,
-			Title:       p.Title,
-			Description: p.Description,
-			TechStack:   formatTextArray(p.TechStack),
-			ImageURL:    p.ImageURL,
-			ProjectURL:  p.ProjectURL,
-			Category:    p.Category,
-			Order:       p.Order,
-			IsFeatured:  p.IsFeatured,
+			ID:            p.ID,
+			Title:         p.Title,
+			Description:   p.Description,
+			TechStack:     formatTextArray(p.TechStack),
+			ImageURL:      p.ImageURL,
+			ProjectURL:    p.ProjectURL,
+			Category:      p.Category,
+			DurationLabel: p.DurationLabel,
+			PriceLabel:    p.PriceLabel,
+			BudgetLabel:   p.BudgetLabel,
+			Order:         p.Order,
+			IsFeatured:    p.IsFeatured,
 		}
 	}
 
@@ -284,8 +293,8 @@ ON CONFLICT (id) DO UPDATE SET
 
 func seedProjects(ctx context.Context, tx *sqlx.Tx, data []projectSeed) error {
 	query := `
-INSERT INTO projects (id, title, description, tech_stack, image_url, project_url, category, "order", is_featured)
-VALUES (:id, :title, :description, CAST(:tech_stack AS TEXT[]), :image_url, :project_url, :category, :order, :is_featured)
+INSERT INTO projects (id, title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured)
+VALUES (:id, :title, :description, CAST(:tech_stack AS TEXT[]), :image_url, :project_url, :category, :duration_label, :price_label, :budget_label, :order, :is_featured)
 ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
         description = EXCLUDED.description,
@@ -293,6 +302,9 @@ ON CONFLICT (id) DO UPDATE SET
         image_url = EXCLUDED.image_url,
         project_url = EXCLUDED.project_url,
         category = EXCLUDED.category,
+        duration_label = EXCLUDED.duration_label,
+        price_label = EXCLUDED.price_label,
+        budget_label = EXCLUDED.budget_label,
         "order" = EXCLUDED."order",
         is_featured = EXCLUDED.is_featured;
 `

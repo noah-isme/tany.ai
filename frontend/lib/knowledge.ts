@@ -32,6 +32,9 @@ export type KnowledgeProject = {
   techStack: string[];
   projectUrl?: string;
   category?: string;
+  durationLabel?: string;
+  priceLabel?: string;
+  budgetLabel?: string;
   isFeatured: boolean;
   order: number;
 };

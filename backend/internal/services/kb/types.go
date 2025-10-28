@@ -32,14 +32,17 @@ type Service struct {
 
 // Project highlights past portfolio entries.
 type Project struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	TechStack   []string `json:"techStack"`
-	ProjectURL  string   `json:"projectUrl,omitempty"`
-	Category    string   `json:"category,omitempty"`
-	IsFeatured  bool     `json:"isFeatured"`
-	Order       int      `json:"order"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Description   string   `json:"description,omitempty"`
+	TechStack     []string `json:"techStack"`
+	ProjectURL    string   `json:"projectUrl,omitempty"`
+	Category      string   `json:"category,omitempty"`
+	DurationLabel string   `json:"durationLabel,omitempty"`
+	PriceLabel    string   `json:"priceLabel,omitempty"`
+	BudgetLabel   string   `json:"budgetLabel,omitempty"`
+	IsFeatured    bool     `json:"isFeatured"`
+	Order         int      `json:"order"`
 }
 
 // KnowledgeBase aggregates all public knowledge powering the assistant.

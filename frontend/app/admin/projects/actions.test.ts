@@ -36,6 +36,9 @@ describe("projects actions", () => {
       image_url: "",
       project_url: "",
       category: "",
+      duration_label: "",
+      price_label: "",
+      budget_label: "",
       is_featured: false,
     });
 
@@ -53,6 +56,9 @@ describe("projects actions", () => {
       image_url: "https://example.com/image.png",
       project_url: "https://example.com",
       category: "AI",
+      duration_label: "8 minggu",
+      price_label: "Growth",
+      budget_label: "IDR 120Jt",
       order: 0,
       is_featured: false,
     };
@@ -65,6 +71,9 @@ describe("projects actions", () => {
       image_url: "https://example.com/image.png",
       project_url: "https://example.com",
       category: "AI",
+      duration_label: "8 minggu",
+      price_label: "Growth",
+      budget_label: "IDR 120Jt",
       is_featured: false,
     });
 
@@ -76,6 +85,9 @@ describe("projects actions", () => {
       image_url: "https://example.com/image.png",
       project_url: "https://example.com",
       category: "AI",
+      duration_label: "8 minggu",
+      price_label: "Growth",
+      budget_label: "IDR 120Jt",
       is_featured: false,
     });
   });
@@ -98,6 +110,9 @@ describe("projects actions", () => {
       image_url: "",
       project_url: "",
       category: "",
+      duration_label: "",
+      price_label: "",
+      budget_label: "",
       order: 0,
       is_featured: true,
     };

@@ -24,7 +24,7 @@ export function ContactPanel({ profile }: ContactPanelProps) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 hidden max-w-sm flex-col gap-3 rounded-3xl border border-white/10 bg-white/10 p-4 shadow-[0_20px_45px_rgba(8,12,24,0.35)] backdrop-blur-xl sm:flex">
+    <div className="fixed bottom-8 right-8 z-40 hidden max-w-sm flex-col gap-3 rounded-3xl border border-white/10 bg-white/10 p-4 shadow-[0_20px_45px_rgba(8,12,24,0.35)] backdrop-blur-xl lg:flex">
       <span className="text-xs uppercase tracking-[0.32em] text-white/60">Hubungi langsung</span>
       <div className="flex flex-wrap gap-3">
         {hasEmail ? (

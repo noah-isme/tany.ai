@@ -104,6 +104,9 @@ function buildProjectPayload(values: ProjectFormValues) {
     image_url: values.image_url ?? "",
     project_url: values.project_url ?? "",
     category: values.category ?? "",
+    duration_label: values.duration_label ?? "",
+    price_label: values.price_label ?? "",
+    budget_label: values.budget_label ?? "",
     is_featured: values.is_featured ?? false,
   };
 }

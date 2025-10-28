@@ -83,6 +83,9 @@ test("admin skill management flow", async ({ page }) => {
     image_url: `https://mock-storage.example.com/uploads/${Date.now()}.png`,
     project_url: "https://example.com/project",
     category: "Testing",
+    duration_label: "4 minggu",
+    price_label: "QA sprint",
+    budget_label: "IDR 60Jt",
     is_featured: true,
   });
 

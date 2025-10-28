@@ -29,6 +29,9 @@ type ProjectResponse = {
   image_url?: string | null;
   project_url?: string | null;
   category?: string | null;
+  duration_label?: string | null;
+  price_label?: string | null;
+  budget_label?: string | null;
   order: number;
   is_featured: boolean;
 };

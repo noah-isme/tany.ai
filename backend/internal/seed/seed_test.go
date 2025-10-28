@@ -68,7 +68,7 @@ func setupSeederMock(t *testing.T, payload seedPayload) (*sqlx.DB, sqlmock.Sqlmo
 
 	for _, item := range payload.Projects {
 		mock.ExpectExec("INSERT INTO projects").
-			WithArgs(item.ID, item.Title, item.Description, item.TechStack, item.ImageURL, item.ProjectURL, item.Category, item.Order, item.IsFeatured).
+			WithArgs(item.ID, item.Title, item.Description, item.TechStack, item.ImageURL, item.ProjectURL, item.Category, item.DurationLabel, item.PriceLabel, item.BudgetLabel, item.Order, item.IsFeatured).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 	}
 

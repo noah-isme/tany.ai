@@ -28,9 +28,9 @@ func TestAggregatorLoadsDataAndCaches(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, description, price_min, price_max, currency, duration_label, "order" FROM services WHERE is_active = TRUE ORDER BY "order" ASC, name ASC`)).
 		WillReturnRows(sqlmock.NewRows(columnsServices).AddRow("00000000-0000-0000-0000-000000000010", "Dev", "Desc", 1000.0, 2000.0, "IDR", "2 minggu", 1))
 
-	columnsProjects := []string{"id", "title", "description", "tech_stack", "project_url", "category", "order", "is_featured"}
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, title, description, tech_stack, project_url, category, "order", is_featured FROM projects ORDER BY is_featured DESC, "order" ASC, title ASC`)).
-		WillReturnRows(sqlmock.NewRows(columnsProjects).AddRow("00000000-0000-0000-0000-000000000020", "Proj", "Impact", `{"Go"}`, "https://example.com", "Web", 1, true))
+	columnsProjects := []string{"id", "title", "description", "tech_stack", "project_url", "category", "duration_label", "price_label", "budget_label", "order", "is_featured"}
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, title, description, tech_stack, project_url, category, duration_label, price_label, budget_label, "order", is_featured FROM projects ORDER BY is_featured DESC, "order" ASC, title ASC`)).
+		WillReturnRows(sqlmock.NewRows(columnsProjects).AddRow("00000000-0000-0000-0000-000000000020", "Proj", "Impact", `{"Go"}`, "https://example.com", "Web", "2 bulan", "IDR 50Jt", "Series A", 1, true))
 
 	aggregator := NewAggregator(sqlx.NewDb(db, "sqlmock"), time.Second)
 

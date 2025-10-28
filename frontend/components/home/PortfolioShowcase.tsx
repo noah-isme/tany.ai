@@ -30,7 +30,7 @@ export function PortfolioShowcase({ projects }: PortfolioShowcaseProps) {
 
   return (
     <motion.div
-      className="grid gap-5 md:grid-cols-2"
+      className="grid gap-6 md:grid-cols-2 xl:gap-8"
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-120px" }}
@@ -38,51 +38,76 @@ export function PortfolioShowcase({ projects }: PortfolioShowcaseProps) {
     >
       {projects.map((project, index) => {
         const isFeatured = project.isFeatured && index < 2;
+        const metadata = [
+          project.category ? { label: project.category, tone: "neutral" } : null,
+          project.durationLabel ? { label: `Durasi ${project.durationLabel}`, tone: "neutral" } : null,
+          project.priceLabel ? { label: project.priceLabel, tone: "accent" } : null,
+          project.budgetLabel ? { label: project.budgetLabel, tone: "accent" } : null,
+        ].filter(Boolean) as { label: string; tone: "neutral" | "accent" }[];
+
         return (
           <motion.article
             key={project.id}
             variants={cardVariants}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-[0_20px_40px_rgba(8,12,24,0.35)] backdrop-blur-xl transition hover:shadow-[0_26px_60px_rgba(124,58,237,0.25)] focus-within:border-white/20 focus-within:shadow-[0_26px_60px_rgba(124,58,237,0.25)] ${
-              isFeatured ? "md:col-span-2 md:grid md:grid-cols-[1.1fr_0.9fr] md:items-center md:gap-8" : ""
+            className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/12 via-white/5 to-white/4 p-8 shadow-[0_20px_40px_rgba(8,12,24,0.35)] backdrop-blur-xl transition duration-300 hover:-translate-y-2 hover:shadow-[0_28px_66px_rgba(124,58,237,0.25)] focus-within:border-white/20 focus-within:shadow-[0_28px_66px_rgba(124,58,237,0.25)] ${
+              isFeatured ? "md:col-span-2 md:p-10" : ""
             }`}
           >
-            <div className="relative z-10 space-y-4">
+            <div className="relative z-10 space-y-6">
               {isFeatured ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-white/70">
                   <Sparkles className="h-4 w-4" /> Featured
                 </span>
               ) : null}
-              <div>
-                <h3 className="font-display text-2xl text-white">{project.title}</h3>
+              <div className="space-y-3">
+                <h3 className="font-display text-[1.75rem] leading-tight text-white sm:text-[1.9rem]">
+                  {project.title}
+                </h3>
                 {project.description ? (
-                  <p className="mt-2 text-sm leading-relaxed text-white/65">
+                  <p className="text-base leading-relaxed text-white/70">
                     {project.description}
                   </p>
                 ) : null}
               </div>
+              {metadata.length ? (
+                <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.24em]">
+                  {metadata.map((item) => (
+                    <span
+                      key={item.label}
+                      className={`rounded-full px-3 py-1 ${
+                        item.tone === "accent"
+                          ? "bg-cyan-400/15 text-cyan-100"
+                          : "border border-white/15 text-white/60"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               {project.techStack.length ? (
-                <div className="flex flex-wrap gap-2 text-xs uppercase tracking-wide text-white/40">
+                <div className="flex flex-wrap gap-2 text-xs text-white/45">
                   {project.techStack.map((tech) => (
                     <span
                       key={tech}
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1"
+                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1 uppercase tracking-wide"
                     >
                       {tech}
                     </span>
                   ))}
                 </div>
               ) : null}
-              {project.projectUrl ? (
-                <Link
-                  href={project.projectUrl}
-                  className="btn-accent inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide shadow-[0_10px_26px_rgba(124,58,237,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                >
-                  Lihat proyek
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              ) : null}
             </div>
+            {project.projectUrl ? (
+              <Link
+                href={project.projectUrl}
+                className="relative z-10 mt-6 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/85 transition hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              >
+                Lihat detail proyek
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            ) : null}
             <div className="pointer-events-none absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100">
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500/20 via-transparent to-cyan-400/20" />
             </div>

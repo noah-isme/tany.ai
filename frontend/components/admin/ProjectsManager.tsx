@@ -177,10 +177,10 @@ export function ProjectsManager({
         <table className="min-w-full divide-y divide-border/60 text-sm">
           <thead className="bg-muted/80">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Proyek</th>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Kategori</th>
-              <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Featured</th>
-              <th className="w-40 px-4 py-3 text-right font-semibold text-muted-foreground">Aksi</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Proyek</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Ringkasan</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-600 dark:text-slate-300">Featured</th>
+              <th className="w-40 px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -234,6 +234,12 @@ function ProjectRow({ project, onEdit, onDelete, onFeature, disabled, isPending 
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const badges = [
+    project.category ? { label: project.category, tone: "neutral" as const } : null,
+    project.duration_label ? { label: `Durasi ${project.duration_label}`, tone: "neutral" as const } : null,
+    project.price_label ? { label: project.price_label, tone: "accent" as const } : null,
+    project.budget_label ? { label: project.budget_label, tone: "accent" as const } : null,
+  ].filter(Boolean) as { label: string; tone: "neutral" | "accent" }[];
 
   return (
     <tr
@@ -275,7 +281,27 @@ function ProjectRow({ project, onEdit, onDelete, onFeature, disabled, isPending 
           </div>
         </div>
       </td>
-      <td className="px-4 py-4 text-sm text-muted-foreground">{project.category || "-"}</td>
+      <td className="px-4 py-4">
+        {badges.length ? (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {badges.map((badge) => (
+              <span
+                key={badge.label}
+                className={clsx(
+                  "rounded-full px-3 py-1",
+                  badge.tone === "accent"
+                    ? "bg-emerald-500/10 text-emerald-200"
+                    : "border border-slate-200/70 text-slate-600 dark:border-slate-700 dark:text-slate-300",
+                )}
+              >
+                {badge.label}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400 dark:text-slate-600">-</span>
+        )}
+      </td>
       <td className="px-4 py-4 text-center">
         <Button
           type="button"
@@ -338,6 +364,9 @@ function ProjectEditor({ mode, project, onSubmit, onCancel, isPending }: Project
       image_url: project?.image_url ?? "",
       project_url: project?.project_url ?? "",
       category: project?.category ?? "",
+      duration_label: project?.duration_label ?? "",
+      price_label: project?.price_label ?? "",
+      budget_label: project?.budget_label ?? "",
       is_featured: project?.is_featured ?? false,
     },
   });
@@ -397,6 +426,31 @@ function ProjectEditor({ mode, project, onSubmit, onCancel, isPending }: Project
               invalid={Boolean(errors.category)}
             />
           </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Durasi" error={errors.duration_label?.message}>
+              <Input
+                placeholder="Contoh: 6 minggu"
+                {...register("duration_label")}
+                invalid={Boolean(errors.duration_label)}
+              />
+            </Field>
+            <Field label="Label harga" error={errors.price_label?.message}>
+              <Input
+                placeholder="Contoh: Growth package"
+                {...register("price_label")}
+                invalid={Boolean(errors.price_label)}
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Label budget" error={errors.budget_label?.message}>
+                <Input
+                  placeholder="Contoh: IDR 150Jt"
+                  {...register("budget_label")}
+                  invalid={Boolean(errors.budget_label)}
+                />
+              </Field>
+            </div>
+          </div>
           <div className="space-y-2">
             <span className="text-sm font-medium text-foreground">Tech Stack</span>
             <div className="space-y-2">

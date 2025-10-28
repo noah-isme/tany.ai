@@ -7,6 +7,9 @@
     "image_url": "https://gyyiuhgcbggxzozasfji.supabase.co/storage/v1/object/public/public-assets/projects/fashion-store.png",
     "project_url": "https://fashion-store.example.com",
     "category": "E-commerce",
+    "duration_label": "12 minggu",
+    "price_label": "Retainer premium",
+    "budget_label": "IDR 180Jt",
     "order": 1,
     "is_featured": true
   },
@@ -18,6 +21,9 @@
     "image_url": "https://gyyiuhgcbggxzozasfji.supabase.co/storage/v1/object/public/public-assets/projects/saas-analytics.png",
     "project_url": "https://analytics.example.com",
     "category": "SaaS",
+    "duration_label": "8 minggu",
+    "price_label": "Growth package",
+    "budget_label": "IDR 140Jt",
     "order": 2,
     "is_featured": true
   },
@@ -29,6 +35,9 @@
     "image_url": "https://gyyiuhgcbggxzozasfji.supabase.co/storage/v1/object/public/public-assets/projects/ai-support.png",
     "project_url": "https://ai-support.example.com",
     "category": "AI & Automation",
+    "duration_label": "6 minggu",
+    "price_label": "Pilot package",
+    "budget_label": "IDR 95Jt",
     "order": 3,
     "is_featured": true
   },
@@ -40,6 +49,9 @@
     "image_url": "https://gyyiuhgcbggxzozasfji.supabase.co/storage/v1/object/public/public-assets/projects/company-profile.png",
     "project_url": "https://company-profile.example.com",
     "category": "Creative",
+    "duration_label": "4 minggu",
+    "price_label": "Brand sprint",
+    "budget_label": "IDR 45Jt",
     "order": 4,
     "is_featured": false
   }

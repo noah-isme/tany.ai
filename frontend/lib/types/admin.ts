@@ -36,6 +36,9 @@ export type Project = {
   image_url: string;
   project_url: string;
   category: string;
+  duration_label: string;
+  price_label: string;
+  budget_label: string;
   order: number;
   is_featured: boolean;
 };

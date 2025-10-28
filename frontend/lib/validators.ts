@@ -73,6 +73,9 @@ export const projectSchema = z.object({
   image_url: optionalString(z.string().url("URL gambar tidak valid")),
   project_url: optionalString(z.string().url("URL proyek tidak valid")),
   category: optionalString(z.string().max(80, "Kategori maksimal 80 karakter")),
+  duration_label: optionalString(z.string().max(80, "Durasi maksimal 80 karakter")),
+  price_label: optionalString(z.string().max(120, "Label harga maksimal 120 karakter")),
+  budget_label: optionalString(z.string().max(120, "Label budget maksimal 120 karakter")),
   is_featured: z.boolean().optional().default(false),
 });
 

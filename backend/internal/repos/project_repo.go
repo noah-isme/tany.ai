@@ -29,7 +29,7 @@ type projectRepository struct {
 }
 
 func (r *projectRepository) List(ctx context.Context, params ListParams) ([]models.Project, int64, error) {
-	const baseQuery = `SELECT id, title, description, tech_stack, image_url, project_url, category, "order", is_featured FROM projects`
+	const baseQuery = `SELECT id, title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured FROM projects`
 	const countQuery = `SELECT COUNT(*) FROM projects`
 
 	orderBy, err := params.ValidateSort(map[string]string{
@@ -57,9 +57,9 @@ func (r *projectRepository) List(ctx context.Context, params ListParams) ([]mode
 }
 
 func (r *projectRepository) Create(ctx context.Context, project models.Project) (models.Project, error) {
-	const query = `INSERT INTO projects (title, description, tech_stack, image_url, project_url, category, "order", is_featured)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, title, description, tech_stack, image_url, project_url, category, "order", is_featured`
+	const query = `INSERT INTO projects (title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured`
 
 	var created models.Project
 	if err := r.db.GetContext(ctx, &created, query,
@@ -69,6 +69,9 @@ RETURNING id, title, description, tech_stack, image_url, project_url, category, 
 		project.ImageURL,
 		project.ProjectURL,
 		project.Category,
+		project.DurationLabel,
+		project.PriceLabel,
+		project.BudgetLabel,
 		project.Order,
 		project.IsFeatured,
 	); err != nil {
@@ -85,10 +88,13 @@ func (r *projectRepository) Update(ctx context.Context, project models.Project) 
     image_url = $5,
     project_url = $6,
     category = $7,
-    "order" = $8,
-    is_featured = $9
+    duration_label = $8,
+    price_label = $9,
+    budget_label = $10,
+    "order" = $11,
+    is_featured = $12
 WHERE id = $1
-RETURNING id, title, description, tech_stack, image_url, project_url, category, "order", is_featured`
+RETURNING id, title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured`
 
 	var updated models.Project
 	if err := r.db.GetContext(ctx, &updated, query,
@@ -99,6 +105,9 @@ RETURNING id, title, description, tech_stack, image_url, project_url, category, 
 		project.ImageURL,
 		project.ProjectURL,
 		project.Category,
+		project.DurationLabel,
+		project.PriceLabel,
+		project.BudgetLabel,
 		project.Order,
 		project.IsFeatured,
 	); err != nil {
@@ -156,7 +165,7 @@ func (r *projectRepository) Reorder(ctx context.Context, pairs []models.Project)
 }
 
 func (r *projectRepository) SetFeatured(ctx context.Context, id uuid.UUID, featured bool) (models.Project, error) {
-	const query = `UPDATE projects SET is_featured = $2 WHERE id = $1 RETURNING id, title, description, tech_stack, image_url, project_url, category, "order", is_featured`
+	const query = `UPDATE projects SET is_featured = $2 WHERE id = $1 RETURNING id, title, description, tech_stack, image_url, project_url, category, duration_label, price_label, budget_label, "order", is_featured`
 
 	var project models.Project
 	if err := r.db.GetContext(ctx, &project, query, id, featured); err != nil {

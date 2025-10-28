@@ -188,16 +188,19 @@ func (a *Aggregator) fetchServices(ctx context.Context) ([]Service, error) {
 }
 
 func (a *Aggregator) fetchProjects(ctx context.Context) ([]Project, error) {
-	const query = `SELECT id, title, description, tech_stack, project_url, category, "order", is_featured FROM projects ORDER BY is_featured DESC, "order" ASC, title ASC`
+	const query = `SELECT id, title, description, tech_stack, project_url, category, duration_label, price_label, budget_label, "order", is_featured FROM projects ORDER BY is_featured DESC, "order" ASC, title ASC`
 	var rows []struct {
-		ID          uuid.UUID      `db:"id"`
-		Title       string         `db:"title"`
-		Description *string        `db:"description"`
-		TechStack   pq.StringArray `db:"tech_stack"`
-		ProjectURL  *string        `db:"project_url"`
-		Category    *string        `db:"category"`
-		Order       int            `db:"order"`
-		IsFeatured  bool           `db:"is_featured"`
+		ID            uuid.UUID      `db:"id"`
+		Title         string         `db:"title"`
+		Description   *string        `db:"description"`
+		TechStack     pq.StringArray `db:"tech_stack"`
+		ProjectURL    *string        `db:"project_url"`
+		Category      *string        `db:"category"`
+		DurationLabel *string        `db:"duration_label"`
+		PriceLabel    *string        `db:"price_label"`
+		BudgetLabel   *string        `db:"budget_label"`
+		Order         int            `db:"order"`
+		IsFeatured    bool           `db:"is_featured"`
 	}
 	if err := a.db.SelectContext(ctx, &rows, query); err != nil {
 		return nil, err
@@ -206,14 +209,17 @@ func (a *Aggregator) fetchProjects(ctx context.Context) ([]Project, error) {
 	projects := make([]Project, 0, len(rows))
 	for _, row := range rows {
 		projects = append(projects, Project{
-			ID:          row.ID.String(),
-			Title:       row.Title,
-			Description: deref(row.Description),
-			TechStack:   []string(row.TechStack),
-			ProjectURL:  deref(row.ProjectURL),
-			Category:    deref(row.Category),
-			IsFeatured:  row.IsFeatured,
-			Order:       row.Order,
+			ID:            row.ID.String(),
+			Title:         row.Title,
+			Description:   deref(row.Description),
+			TechStack:     []string(row.TechStack),
+			ProjectURL:    deref(row.ProjectURL),
+			Category:      deref(row.Category),
+			DurationLabel: deref(row.DurationLabel),
+			PriceLabel:    deref(row.PriceLabel),
+			BudgetLabel:   deref(row.BudgetLabel),
+			IsFeatured:    row.IsFeatured,
+			Order:         row.Order,
 		})
 	}
 	return projects, nil
