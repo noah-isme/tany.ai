@@ -344,8 +344,9 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.match(/^\/api\/admin\/external\/sources\/.+\/sync$/)) {
-    const sourceId = url.split("/")[4];
-    const target = externalSources.find((source) => source.id === sourceId);
+    const match = url.match(/^\/api\/admin\/external\/sources\/([^/]+)\/sync$/);
+    const sourceId = match?.[1];
+    const target = sourceId ? externalSources.find((source) => source.id === sourceId) : null;
     if (!target) {
       sendJson(res, 404, { error: { message: "Source not found" } });
       return;
